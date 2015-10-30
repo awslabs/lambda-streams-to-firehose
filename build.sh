@@ -8,6 +8,6 @@ region=eu-west-1
 
 rm $filename 2>&1 >> /dev/null
 
-zip -r $filename index.js package.json node_modules/ README.md LICENSE.txt && mv -f $filename dist/$filename
+zip -r $filename index.js package.json node_modules/ README.md LICENSE && mv -f $filename dist/$filename
 
 aws lambda update-function-code --function-name $functionName --zip-file fileb://dist/$filename --region $region

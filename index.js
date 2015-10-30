@@ -1,5 +1,6 @@
-var debug = true;
+var debug = false;
 
+var pjson = require('./package.json');
 var region = process.env['AWS_REGION'];
 
 if (!region || region === null || region === "") {
@@ -57,14 +58,15 @@ exports.regexToDelimiter = function(regex, delimiter, data, callback) {
 	if (tokens) {
 		callback(null, new Buffer(tokens.slice(1).join(delimiter) + "\n"));
 	} else {
-		callback(null, null);
+		callback("Configured Regular Expression does not match any tokens", null);
 	}
 }
-// var transformer = exports.addNewlineTransformer.bind(undefined);
+var transformer = exports.addNewlineTransformer.bind(undefined);
 //
 // example regex transformer that matches all text after 'my regex' and turns it
 // into pipe delimited text
-var transformer = exports.regexToDelimiter.bind(undefined, "my regex (.*)", "|");
+// var transformer = exports.regexToDelimiter.bind(undefined, /(myregex) (.*)/,
+// "|");
 
 exports.handler = function(event, context) {
 	/** Runtime Functions */
@@ -171,12 +173,12 @@ exports.handler = function(event, context) {
 
 		if (debug) {
 			console.log("Forwarding " + event.Records.length + " Kinesis records to Delivery Stream " + deliveryStreamName);
-			console.log(JSON.stringify(batchSpec));
+			console.log(JSON.stringify(batches));
 		}
 
 		// push to Firehose using PutRecords API at max record count. This uses
 		// the async reduce method so that records from Kinesis will appear in
-		// the Firehose PutRecords request in the same orderas they were
+		// the Firehose PutRecords request in the same order as they were
 		// received by this function
 		async.reduce(batches, 0, function(successCount, item, callback) {
 			if (debug) {
@@ -190,7 +192,7 @@ exports.handler = function(event, context) {
 				if (err) {
 					callback(err, successCount);
 				} else {
-					callback(null, successCount++);
+					callback(null, successCount + 1);
 				}
 			});
 		}, function(err, result) {
@@ -198,7 +200,7 @@ exports.handler = function(event, context) {
 				console.log("Forwarding failure after " + result + " successful batches");
 				finish(err, ERROR);
 			} else {
-				console.log("Event forwarding complete. Forwarded " + result + " batches to Firehose");
+				console.log("Event forwarding complete. Forwarded " + result + " batches comprising " + event.Records.length + " records to Firehose");
 				finish(null, OK);
 			}
 		});

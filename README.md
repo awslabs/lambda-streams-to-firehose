@@ -107,6 +107,16 @@ var transformer = exports.addNewlineTransformer.bind(undefined);
 
 When successfully configured, writes to your Kinesis Stream should be automatically forwarded to the Firehose Delivery Stream, and you'll see data arriving in Amazon S3 and optionally Amazon Redshift. You can also view CloudWatch Logs (citation) for this Lambda function as it forwards streams
 
+# Debugging & Creating New Builds
+
+If you write a new transformer, you may wish to see debug logging in the CloudWatch Logging Stream generated for function execution. If so, then simply change 'false' to 'true' on the first line of the function:
+
+```
+var debug = false;
+```
+
+You will then need to rebuild and redeploy the function. You can do this with the ```build.sh``` script included in the repository. This will automatically redeploy the function using name 'KinesisStreamToFirehose'. If you have deployed your function as a different name, then please update this line in ```build.sh```
+
 # Technical Bits
 
 The Kinesis Streams to Firehose forwarding function uses the putRecordBatch interface to Firehose to send 500 messages at a time. The batches are processed serially so as to preserve the order of messages as they are received from Kinesis. All transformer functions are run in parallel and then re-ordered via the ```async.map``` function.
