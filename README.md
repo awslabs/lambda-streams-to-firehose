@@ -10,13 +10,53 @@ In order to effectively use this function, you should already have configured a 
 
 # Deploying
 
-To use this function, simply deploy the [dist/KinesisStreamToFirehose-1.0.0.zip](KinesisStreamToFirehose-1.0.0.zip) to AWS Lambda. You must ensure that it is deployed with an invocation role that includes:
+To use this function, simply deploy the [dist/KinesisStreamToFirehose-1.0.0.zip](KinesisStreamToFirehose-1.0.0.zip) to AWS Lambda. You must ensure that it is deployed with an invocation role that includes the ability to write CloudWatch Logs, Read from Kinesis and Write to Kinesis Firehose:
 
 ```
-IAM Role
+{
+    "Version": "myversion",
+    "Statement": [
+        {
+            "Sid": "Stmt1446202596000",
+            "Effect": "Allow",
+            "Action": [
+                "logs:*"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "Stmt1446202612000",
+            "Effect": "Allow",
+            "Action": [
+                "kinesis:DescribeStream",
+                "kinesis:ListStreams",
+                "kinesis:GetShardIterator",
+                "kinesis:GetRecords"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Sid": "Stmt1446202630000",
+            "Effect": "Allow",
+            "Action": [
+                "firehose:DescribeDeliveryStream",
+                "firehose:ListDeliveryStreams",
+                "firehose:PutRecord",
+                "firehose:PutRecordBatch"
+            ],
+            "Resource": [
+                "*"
+            ]
+        }
+    ]
+}
 ```
 
-Finally, create an Event Source (citation) for this function from the Kinesis Stream to be forwarded to Firehose.
+You may choose to restrict the IAM role to be specific to a subset of Kinesis Streams and Firehose endpoints. Finally, create an Event Source (citation) for this function from the Kinesis Stream to be forwarded to Firehose.
 
 # Configuration
 
@@ -51,10 +91,20 @@ You then register this transformer function by assigning an instance of it to th
 var transformer = myTransformerFunction.bind(undefined, <internal setup args>);
 ```
 
+You can find the built in Base64 decode and newline addition transformer as an example below:
+
+```
+exports.addNewlineTransformer = function(data, callback) {
+	// emitting a new buffer as ascii text with newline
+	callback(null, new Buffer(data.toString('ascii') + "\n"));
+}
+var transformer = exports.addNewlineTransformer.bind(undefined);
+```
+
 # Confirming Successful Execution
 
 When succesfully configured, writes to your Kinesis Stream should be automatically forwarded to the Firehose Delivery Stream, and you'll see data arriving in Amazon S3 and optionally Amazon Redshift. You can also view CloudWatch Logs (citation) for this Lambda function as it forwards streams
 
 # Technical Bits
 
-The Kinesis Streams to Firehose forwarding function uses the PutRecordBatch
+The Kinesis Streams to Firehose forwarding function uses the putRecordBatch interface to Firehose to send 500 messages at a time. The batches are processed serially so as to preserve the order of messages as they are received from Kinesis. All transformer functions are run in parallel and then re-ordered via the ```async.map``` function.
