@@ -4,6 +4,9 @@ Kinesis Streams gives customers the ability to process streaming big data at any
 
 This project contains an AWS Lambda function which does just that, without any need for customer development. It is highly efficient and preserves Stream data ordering. The target Firehose Delivery Stream is referenced by tagging the Kinesis Stream with the Delivery Stream name to forward to.
 
+![StreamToFirehose](StreamToFirehose.png)
+
+
 # Pre-requisites
 
 In order to effectively use this function, you should already have configured a Kinesis Stream, as well as a Kinesis Firehose Delivery Stream, and ensured that producer applications can write to the Stream, and that the Firehose Delivery Stream is able to deliver data to S3 or Redshift. This function makes no changes to Streams or Firehose configurations. You must also have the AWS Command Line Interface (https://aws.amazon.com/cli) installed to take advantage of the Stream Tagging utility supplied
