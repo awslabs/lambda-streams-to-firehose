@@ -1,0 +1,30 @@
+{
+    "name": "kinesis-stream-to-firehose",
+    "description": "An AWS Lambda function that forwards data from a Kinesis Stream to a Kinesis Firehose Delivery Stream",
+    "version": "1.0.0",
+    "dependencies": {
+    	"aws-sdk":"2.2.10",
+    	"async":"1.4.2"
+    },
+    "keywords": [
+        "amazon",
+        "aws",
+        "kinesis",
+        "firehose",
+        "lambda"
+    ],
+    "author": {
+        "name": "Ian Meyers",
+        "email": "meyersi@amazon.com"
+    },
+    "main": "index.js",
+    "license" : "Apache-2.0",
+    "files": [
+        "index.js",
+        "lambda.json",
+        "tagStream.sh",
+        "package.json",
+        "README.md",
+        "LICENSE.txt"
+    ]
+}

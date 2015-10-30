@@ -1,0 +1,33 @@
+{
+  "lambda": {
+    "FunctionName": "kinesis-stream-to-firehose",
+    "Handler": "index.handler",
+    "Runtime": "nodejs",
+    "Description": "Blueprint which enables forwarding Kinesis Streams data to Kinesis Firehose Delivery Streams",
+    "MemorySize": 128,
+    "Timeout": 60
+  },
+  "eventSources": {
+    "kinesis": [
+      {}
+    ]
+  },
+  "endpoints": {
+    "firehose": [
+      {}
+    ]
+  },
+  "version": "1.0.0",
+  "build": "KinesisStreamToFirehose.zip",
+  "license": "Apache-2.0",
+  "tags": [
+    "nodejs",
+    "kinesis",
+    "lambda",
+    "firehose"
+  ],
+  "authors": [
+    "Ian Meyers <meyersi@amazon.com> (https://aws.amazon.com)"
+  ],
+  "private": false
+}
