@@ -25,6 +25,7 @@
         "tagStream.sh",
         "package.json",
         "README.md",
-        "LICENSE.txt"
+        "LICENSE",
+        "NOTICE.txt"
     ]
 }
