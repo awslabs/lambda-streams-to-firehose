@@ -10,7 +10,7 @@ In order to effectively use this function, you should already have configured a 
 
 # Deploying
 
-To use this function, simply deploy the [KinesisStreamToFirehose-1.0.0.zip](https://github.com/awslabs/kinesis-stream-to-firehose/dist/KinesisStreamToFirehose-1.0.0.zip) to AWS Lambda. You must ensure that it is deployed with an invocation role that includes the ability to write CloudWatch Logs, Read from Kinesis and Write to Kinesis Firehose:
+To use this function, simply deploy the [KinesisStreamToFirehose-1.0.0.zip](https://github.com/awslabs/kinesis-streams-to-firehose/blob/master/dist/KinesisStreamToFirehose-1.0.0.zip) to AWS Lambda. You must ensure that it is deployed with an invocation role that includes the ability to write CloudWatch Logs, Read from Kinesis and Write to Kinesis Firehose:
 
 ```
 {
