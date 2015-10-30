@@ -56,7 +56,9 @@ To use this function, simply deploy the [KinesisStreamToFirehose-1.0.0.zip](http
 }
 ```
 
-You may choose to restrict the IAM role to be specific to a subset of Kinesis Streams and Firehose endpoints. Finally, create an Event Source (citation) for this function from the Kinesis Stream to be forwarded to Firehose.
+You may choose to restrict the IAM role to be specific to a subset of Kinesis Streams and Firehose endpoints. 
+
+Finally, create an Event Source (http://docs.aws.amazon.com/lambda/latest/dg/wt-kinesis-configure-kinesis.html) for this function from the Kinesis Stream to be forwarded to Firehose.
 
 # Configuration
 
