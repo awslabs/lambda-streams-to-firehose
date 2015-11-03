@@ -115,13 +115,31 @@ When successfully configured, writes to your Kinesis Stream should be automatica
 If you write a new transformer, you may wish to see debug logging in the CloudWatch Logging Stream generated for function execution. If so, then simply change 'false' to 'true' on the first line of the function:
 
 ```
-var debug = false;
+var debug = true;
 ```
 
-You will then need to rebuild and redeploy the function. You can do this with the ```build.sh``` script included in the repository. This will automatically redeploy the function using name 'KinesisStreamToFirehose'. If you have deployed your function as a different name, then please update this line in ```build.sh```
+You will then need to rebuild and redeploy the function. To do this, first install the required dependencies with ```npm install```, and then you can deploy a new version of the function with the ```build.sh``` script included in the repository. This will automatically redeploy the function using name 'KinesisStreamToFirehose'. If you have deployed your function as a different name, then please update this line in ```build.sh```
 
 # Technical Bits
 
-The Kinesis Streams to Firehose forwarding function uses the putRecordBatch interface to Firehose to send 500 messages at a time with a max payload size of 4MB (as of 2015-11-02). The batches are processed serially so as to preserve the order of messages as they are received from Kinesis.
+This function uses the putRecordBatch interface to Firehose to send 500 messages at a time with a max payload size of 4MB (as of 2015-11-02). The batches are processed serially so as to preserve the order of messages as they are received from Kinesis.
 
-Transformation creates another copy of the input records, so you must plan accordingly when sizing the memory limit for the function. Also consider that user defined transformers that significantly increase message size will need to be stored in memory before being dispatched to Firehose. If you need to limit the number of records for any reason, this can be set on the Kinesis Event Source for your function.
+Transformation creates another copy of input records, so you must plan accordingly when sizing the memory limit in AWS Lambda. Also consider that user defined transformers which significantly increase message size will need to be stored in memory before being dispatched to Firehose. If you need to limit the number of records for any reason, this can be set on the Kinesis Event Source for your function.
+
+----
+
+Kinesis Streams to Firehose
+
+Copyright 2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
