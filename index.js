@@ -1,4 +1,4 @@
-var debug = false;
+var debug = true;
 
 var pjson = require('./package.json');
 var region = process.env['AWS_REGION'];
@@ -30,7 +30,9 @@ var async = require('async');
 var OK = 'OK';
 var ERROR = 'ERROR';
 var FORWARD_TO_FIREHOSE_STREAM = "ForwardToFirehoseStream";
-var FIREHOSE_MAX_BATCH_SIZE = 500;
+var FIREHOSE_MAX_BATCH_COUNT = 500;
+// firehose max PutRecordBatch size 4MB
+var FIREHOSE_MAX_BATCH_BYTES = 4 * 1024 * 1024;
 
 var deliveryStreamMapping = {};
 
@@ -68,6 +70,53 @@ var transformer = exports.addNewlineTransformer.bind(undefined);
 // var transformer = exports.regexToDelimiter.bind(undefined, /(myregex) (.*)/,
 // "|");
 
+/**
+ * Function which returns the byte length of a string
+ */
+exports.byteCount = function(s) {
+	return encodeURI(s).split(/%..|./).length - 1;
+}
+
+/**
+ * Convenience function which generates the batch set with low and high offsets
+ * for pushing data to Firehose in blocks of FIREHOSE_MAX_BATCH_COUNT and
+ * staying within the FIREHOSE_MAX_BATCH_BYTES max payload size
+ */
+exports.getBatchRanges = function(records) {
+	var batches = [];
+	var currentLowOffset = 0;
+	var batchCurrentBytes = 0;
+	var batchCurrentCount = 0;
+	var recordSize;
+
+	for (var i = 0; i < records.length; i++) {
+		// need to calculate the total record size for the call to Firehose on
+		// the basis of of non-base64 encoded values
+		recordSize = exports.byteCount(records[i].Data.toString('ascii'));
+
+		// batch always has 1 entry, so add it first
+		batchCurrentBytes += recordSize;
+		batchCurrentCount += 1;
+
+		// generate a new batch marker every 4MB or 500 records, whichever comes
+		// first
+		if (batchCurrentCount === FIREHOSE_MAX_BATCH_COUNT || batchCurrentBytes + recordSize > FIREHOSE_MAX_BATCH_BYTES || i === records.length - 1) {
+			batches.push({
+				lowOffset : currentLowOffset,
+				// annoying special case handling for record sets of size 1
+				highOffset : records.length === 1 ? 1 : i,
+				sizeBytes : batchCurrentBytes
+			});
+			// reset accumulators
+			currentLowOffset = i + 1;
+			batchCurrentBytes = 0;
+			batchCurrentCount = 0;
+		}
+	}
+
+	return batches;
+}
+
 exports.handler = function(event, context) {
 	/** Runtime Functions */
 	var finish = function(event, status, message) {
@@ -79,7 +128,7 @@ exports.handler = function(event, context) {
 				console.log(message);
 			}
 
-			// ensure that Lambda doesn't checkpoint to kinesis
+			// ensure that Lambda doesn't checkpoint to kinesis on error
 			context.done(status, JSON.stringify(message));
 		} else {
 			context.done(null, message);
@@ -87,112 +136,35 @@ exports.handler = function(event, context) {
 	};
 
 	/**
-	 * function which forwards a batch of kinesis records to a firehose delivery
-	 * stream after applying a user defined transformer
+	 * function which handles the output of the defined transformation on each
+	 * record.
 	 */
-	exports.forwardKinesisBatch = function(processRecords, streamName, deliveryStreamName, afterBatchCallback) {
-		// TODO remove this guard condition as it can only be encountered due to
-		// a programming error
-		if (processRecords.length > FIREHOSE_MAX_BATCH_SIZE) {
-			afterBatchCallback("Cannot forward " + processRecords.length + " records to Firehose - max records for PutRecordBatch = " + FIREHOSE_MAX_BATCH_SIZE);
-		}
-		// END TODO
-
-		// run the user defined transformer for each record to be processed
-		async.map(processRecords, function(item, callback) {
-			transformer(new Buffer(item.kinesis.data, 'base64'), function(err, transformed) {
-				if (err) {
-					console.log(JSON.stringify(err));
-					callback(err, null);
-				} else {
-					if (transformed) {
-						if (!(transformed instanceof Buffer)) {
-							callback("Transformed must be an instance of Buffer", null);
-						} else {
-							callback(null, {
-								Data : transformed
-							});
-						}
-					}
-				}
-			});
-		}, function(err, firehoseBatch) {
-			if (err) {
-				afterBatchCallback(err)
-			} else {
-				// write the batch to firehose with putRecordBatch
-				var putRecordBatchParams = {
-					DeliveryStreamName : deliveryStreamName,
-					Records : firehoseBatch
-				};
-				firehose.putRecordBatch(putRecordBatchParams, function(err, data) {
-					if (err) {
-						console.log(JSON.stringify(err));
-						afterBatchCallback(err);
-					} else {
-						if (debug) {
-							console.log("Wrote " + firehoseBatch.length + " records to Firehose " + deliveryStreamName);
-						}
-						afterBatchCallback();
-					}
-				});
-			}
-		});
-	};
-
-	/**
-	 * Convenience function which generates the batch set with low and high
-	 * offsets for pushing data to Firehose in blocks of FIREHOSE_MAX_BATCH_SIZE
-	 */
-	exports.getBatchRanges = function(recordCount) {
-		var batchCount = Math.floor(recordCount / FIREHOSE_MAX_BATCH_SIZE) + 1;
-		var batches = [];
-
-		for (var i = 0; i < batchCount; i++) {
-			var batchLow = i * FIREHOSE_MAX_BATCH_SIZE;
-			var batchHigh = batchLow + (FIREHOSE_MAX_BATCH_SIZE - 1);
-
-			batches.push({
-				lowOffset : batchLow,
-				highOffset : batchHigh
-			});
-		}
-
-		return batches;
-	}
-
-	/**
-	 * Function to process a Kinesis Event from AWS Lambda, and generate
-	 * requests to forward to Firehose
-	 */
-	exports.processEvent = function(event, streamName) {
-		// look up the delivery stream name of the mapping cache
-		var deliveryStreamName = deliveryStreamMapping[streamName];
-
-		var batches = exports.getBatchRanges(event.Records.length);
+	exports.processTransformedRecords = function(transformed, streamName, deliveryStreamName) {
+		// get the set of batch offsets based on the transformed record sizes
+		var batches = exports.getBatchRanges(transformed);
 
 		if (debug) {
-			console.log("Forwarding " + event.Records.length + " Kinesis records to Delivery Stream " + deliveryStreamName);
 			console.log(JSON.stringify(batches));
 		}
 
-		// push to Firehose using PutRecords API at max record count. This uses
-		// the async reduce method so that records from Kinesis will appear in
-		// the Firehose PutRecords request in the same order as they were
-		// received by this function
-		async.reduce(batches, 0, function(successCount, item, callback) {
+		// push to Firehose using PutRecords API at max record count or size.
+		// This uses the async reduce method so that records from Kinesis will
+		// appear in the Firehose PutRecords request in the same order as they
+		// were received by this function
+		async.reduce(batches, 0, function(successCount, item, reduceCallback) {
 			if (debug) {
-				console.log("Forwarding records " + item.lowOffset + " to " + item.highOffset);
+				console.log("Forwarding records " + item.lowOffset + ":" + item.highOffset + " - " + item.sizeBytes + " Bytes");
 			}
 
-			// grab the batch assigned subset of the records to push to firehose
-			var processRecords = event.Records.slice(item.lowOffset, item.highOffset);
+			// grab subset of the records assigned for this batch and push to
+			// firehose
+			var processRecords = transformed.slice(item.lowOffset, item.highOffset + 1);
 
-			exports.forwardKinesisBatch(processRecords, streamName, deliveryStreamName, function(err) {
+			exports.writeToFirehose(processRecords, streamName, deliveryStreamName, function(err) {
 				if (err) {
-					callback(err, successCount);
+					reduceCallback(err, successCount);
 				} else {
-					callback(null, successCount + 1);
+					reduceCallback(null, successCount + 1);
 				}
 			});
 		}, function(err, result) {
@@ -202,6 +174,69 @@ exports.handler = function(event, context) {
 			} else {
 				console.log("Event forwarding complete. Forwarded " + result + " batches comprising " + event.Records.length + " records to Firehose");
 				finish(null, OK);
+			}
+		});
+	}
+
+	/**
+	 * function which forwards a batch of kinesis records to a firehose delivery
+	 * stream
+	 */
+	exports.writeToFirehose = function(firehoseBatch, streamName, deliveryStreamName, callback) {
+		// write the batch to firehose with putRecordBatch
+		var putRecordBatchParams = {
+			DeliveryStreamName : deliveryStreamName,
+			Records : firehoseBatch
+		};
+		firehose.putRecordBatch(putRecordBatchParams, function(err, data) {
+			if (err) {
+				console.log(JSON.stringify(err));
+				callback(err);
+			} else {
+				if (debug) {
+					console.log("Successfully wrote " + firehoseBatch.length + " records to Firehose " + deliveryStreamName);
+				}
+				callback();
+			}
+		});
+	};
+	/**
+	 * Function to process a Kinesis Event from AWS Lambda, and generate
+	 * requests to forward to Firehose
+	 */
+	exports.processEvent = function(event, streamName) {
+		// look up the delivery stream name of the mapping cache
+		var deliveryStreamName = deliveryStreamMapping[streamName];
+
+		if (debug) {
+			console.log("Forwarding " + event.Records.length + " Kinesis records to Delivery Stream " + deliveryStreamName);
+		}
+
+		// run the user defined transformer for each record to be processed
+		async.map(event.Records, function(item, callback) {
+			transformer(new Buffer(item.kinesis.data, 'base64'), function(err, transformed) {
+				if (err) {
+					console.log(JSON.stringify(err));
+					callback(err, null);
+				} else {
+					if (transformed) {
+						if (!(transformed instanceof Buffer)) {
+							callback("Output of Transformer must be an instance of Buffer", null);
+						} else {
+							// call the map callback with the transformed Buffer
+							// decorated for use as a Firehose batch entry
+							callback(null, {
+								Data : transformed
+							});
+						}
+					}
+				}
+			});
+		}, function(err, transformed) {
+			if (err) {
+				finish(err, ERROR)
+			} else {
+				exports.processTransformedRecords(transformed, streamName, deliveryStreamName);
 			}
 		});
 	};

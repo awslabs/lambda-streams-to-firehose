@@ -122,4 +122,6 @@ You will then need to rebuild and redeploy the function. You can do this with th
 
 # Technical Bits
 
-The Kinesis Streams to Firehose forwarding function uses the putRecordBatch interface to Firehose to send 500 messages at a time. The batches are processed serially so as to preserve the order of messages as they are received from Kinesis. All transformer functions are run in parallel and then re-ordered via the ```async.map``` function.
+The Kinesis Streams to Firehose forwarding function uses the putRecordBatch interface to Firehose to send 500 messages at a time with a max payload size of 4MB (as of 2015-11-02). The batches are processed serially so as to preserve the order of messages as they are received from Kinesis.
+
+Transformation creates another copy of the input records, so you must plan accordingly when sizing the memory limit for the function. Also consider that user defined transformers that significantly increase message size will need to be stored in memory before being dispatched to Firehose. If you need to limit the number of records for any reason, this can be set on the Kinesis Event Source for your function.
