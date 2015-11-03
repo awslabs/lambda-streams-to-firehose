@@ -1,4 +1,4 @@
-var debug = true;
+var debug = false;
 
 var pjson = require('./package.json');
 var region = process.env['AWS_REGION'];
