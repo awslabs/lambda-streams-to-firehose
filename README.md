@@ -1,8 +1,8 @@
-# Kinesis Streams to Kinesis Firehose Forwarder
+# AWS Streams to Kinesis Firehose Forwarder
 
-Kinesis Streams gives customers the ability to process streaming big data at any scale with low latency and high data durability. Kinesis Firehose simplifies delivery of streaming data to Amazon S3 and Redshift with a simple, automatically scaled and zero operations requirement. Customers can also utilise the Kinesis Agent (http://docs.aws.amazon.com/firehose/latest/dev/writing-with-agents.html) to automatically publish file data to Kinesis Streams and/or Kinesis Firehose delivery streams. For those customers who are already using Kinesis Streams for real time processing, and would also like to take advantage of Kinesis Firehose for archival of their Stream data, a simple way of pushing data from a Stream to a Firehose Delivery Stream is needed.
+Kinesis Streams give customers the ability to process streaming big data at any scale with low latency and high data durability. Kinesis Firehose simplifies delivery of streaming data to Amazon S3 and Redshift with a simple, automatically scaled and zero operations service. Customers can also utilise the Kinesis Agent (http://docs.aws.amazon.com/firehose/latest/dev/writing-with-agents.html) to automatically publish file data to Kinesis Streams and/or Kinesis Firehose delivery streams. For those customers who are already using Kinesis Streams for real time processing and would also like to take advantage of Kinesis Firehose for archival of their Stream data, a simple way of pushing data from a Stream to Kinesis Firehose is needed.
 
-This project contains an AWS Lambda function which does just that, without any need for customer development. It is highly efficient and preserves Stream data ordering. The target Firehose Delivery Stream is referenced by tagging the Kinesis Stream with the Delivery Stream name to forward to.
+This project contains an AWS Lambda function which does just that, without any need for you to write code. It is highly efficient and preserves Stream data ordering. The target Firehose Delivery Stream is referenced by tagging the Kinesis Stream with the Delivery Stream name to forward to.
 
 ![StreamToFirehose](StreamToFirehose.png)
 
