@@ -97,7 +97,9 @@ exports.byteCount = function(s) {
 /**
  * Convenience function which generates the batch set with low and high offsets
  * for pushing data to Firehose in blocks of FIREHOSE_MAX_BATCH_COUNT and
- * staying within the FIREHOSE_MAX_BATCH_BYTES max payload size
+ * staying within the FIREHOSE_MAX_BATCH_BYTES max payload size. Batch ranges
+ * are calculated to be compatible with the array.slice() function which uses a
+ * non-inclusive upper bound
  */
 exports.getBatchRanges = function(records) {
 	var batches = [];
@@ -121,7 +123,7 @@ exports.getBatchRanges = function(records) {
 			batches.push({
 				lowOffset : currentLowOffset,
 				// annoying special case handling for record sets of size 1
-				highOffset : records.length === 1 ? 1 : i,
+				highOffset : i + 1,
 				sizeBytes : batchCurrentBytes
 			});
 			// reset accumulators
@@ -175,7 +177,7 @@ exports.handler = function(event, context) {
 
 			// grab subset of the records assigned for this batch and push to
 			// firehose
-			var processRecords = transformed.slice(item.lowOffset, item.highOffset + 1);
+			var processRecords = transformed.slice(item.lowOffset, item.highOffset);
 
 			exports.writeToFirehose(processRecords, streamName, deliveryStreamName, function(err) {
 				if (err) {
