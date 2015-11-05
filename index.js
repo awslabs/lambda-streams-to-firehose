@@ -36,7 +36,7 @@ aws.config.update({
 
 var firehose = new aws.Firehose({
 	apiVersion : '2015-08-04',
-	region : 'eu-west-1'
+	region : region
 });
 var kinesis = new aws.Kinesis({
 	apiVersion : '2013-12-02',
@@ -189,7 +189,7 @@ exports.handler = function(event, context) {
 				console.log("Forwarding failure after " + result + " successful batches");
 				finish(err, ERROR);
 			} else {
-				console.log("Event forwarding complete. Forwarded " + result + " batches comprising " + event.Records.length + " records to Firehose");
+				console.log("Event forwarding complete. Forwarded " + result + " batches comprising " + event.Records.length + " records to Firehose " + deliveryStreamName);
 				finish(null, OK);
 			}
 		});
@@ -270,6 +270,7 @@ exports.handler = function(event, context) {
 			if (err) {
 				finish(event, ERROR, err);
 			} else {
+				// grab the tag value if it's the foreward_to_firehose name item
 				data.Tags.map(function(item) {
 					if (item.Key === FORWARD_TO_FIREHOSE_STREAM) {
 						deliveryStreamMapping[streamName] = item.Value
@@ -277,14 +278,27 @@ exports.handler = function(event, context) {
 				});
 
 				if (!deliveryStreamMapping[streamName]) {
-					// fail as the stream isn't tagged for delivery, but as
+					// fail as the stream isn't tagged for delivery, but since
 					// there is an event source configured we think this should
 					// have been done and is probably a misconfiguration
 					finish(event, ERROR, "Warning: Kinesis Stream " + streamName + " not tagged for Firehose delivery with Tag name " + FORWARD_TO_FIREHOSE_STREAM);
 				} else {
-					// call the specified callback - should have already been
-					// prepared by the calling function
-					callback();
+					// validate the delivery stream name provided
+					var params = {
+						DeliveryStreamName : deliveryStreamMapping[streamName]
+					};
+					firehose.describeDeliveryStream(params, function(err, data) {
+						if (err) {
+							// do not continue with the cached mapping
+							delete deliveryStreamMapping[streamName];
+
+							finish(event, ERROR, "Delivery Stream " + deliveryStreamMapping[streamName] + " does not exist in region " + region);
+						} else {
+							// call the specified callback - should have already
+							// been prepared by the calling function
+							callback();
+						}
+					});
 				}
 			}
 		});
