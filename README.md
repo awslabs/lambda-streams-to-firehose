@@ -128,7 +128,7 @@ Transformation creates another copy of input records, so you must plan according
 
 ----
 
-Kinesis Streams to Firehose
+AWS Streams to Firehose
 
 Copyright 2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 

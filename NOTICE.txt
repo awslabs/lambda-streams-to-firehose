@@ -1,3 +1,3 @@
-Kinesis Streams to Firehose
+AWS Streams to Firehose
 
 Copyright 2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
