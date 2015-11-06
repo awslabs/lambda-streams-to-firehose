@@ -323,7 +323,7 @@ exports.handler = function(event, context) {
 
 	// only configured to support kinesis events. Maybe support SNS in future?
 	if (event.Records[0].eventSource !== "aws:kinesis") {
-		noProcessReason = "Invalid Event Source " + event.eventSource
+		noProcessReason = "Invalid Event Source " + event.Records[0].eventSource;
 	}
 
 	// currently hard coded around the 1.0 kinesis event schema
