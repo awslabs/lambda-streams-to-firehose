@@ -11,7 +11,7 @@ In order to effectively use this function, you should already have configured a 
 
 # Configuration
 
-This Lambda function uses either Tag information from Amazon Kinesis Stream, or a convention to determine which Delivery Stream to forward to. If Kinesis Streams are used, the delivery stream can have any name, and to Tag the Stream for Firehose Delivery, simply run the ```tagKinesisStream.sh``` script:
+This Lambda function uses either Tag information from Amazon Kinesis Stream, or a convention to determine which Delivery Stream to forward to. If Kinesis Streams are used, the delivery stream can have any name, and to Tag the Stream for Firehose Delivery simply run the ```tagKinesisStream.sh``` script:
 
 ```
 tagStream.sh <My Kinesis Stream> <My Firehose Delivery Stream> <region>
@@ -23,7 +23,7 @@ tagStream.sh <My Kinesis Stream> <My Firehose Delivery Stream> <region>
 
 This will add a new Stream Tag named ```ForwardToFirehoseStream``` on the Kinesis Stream with the value you supply. You can run the script any time to update this value. To view the Tags configured on the Stream, simply run ```aws kinesis list-tags-for-stream --stream-name <My Kinesis Stream> --region <region>```
 
-If you are using DynamoDB, then the Firehose Delivery Stream must be the same name as the DynamoDB Table.
+If you are using DynamoDB, then *the Firehose Delivery Stream must be the same name as the DynamoDB Table*.
 
 Only single region deployments are supported today.
 
@@ -93,7 +93,7 @@ To use this function, simply deploy the [LambdaStreamToFirehose-1.1.0.zip](https
 
 You may choose to restrict the IAM role to be specific to a subset of Kinesis or DynamoDB Update Streams and Firehose endpoints. 
 
-Finally, create an Event Source (http://docs.aws.amazon.com/lambda/latest/dg/wt-kinesis-configure-kinesis.html) for this function from the  Stream to be forwarded to Firehose.
+Finally, create an Event Source (http://docs.aws.amazon.com/lambda/latest/dg/intro-core-components.html) for this function from the Stream to be forwarded to Firehose.
 
 # Optional Data Transformation
 
