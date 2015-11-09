@@ -1,5 +1,5 @@
 /*
-Kinesis Streams to Firehose
+AWS Streams to Firehose
 
 Copyright 2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
@@ -26,7 +26,7 @@ if (!region || region === null || region === "") {
 }
 
 if (debug) {
-	console.log("AWS Kinesis Stream to Firehose Forwarder v" + pjson.version + " in " + region);
+	console.log("AWS Streams to Firehose Forwarder v" + pjson.version + " in " + region);
 }
 
 var aws = require('aws-sdk');
@@ -47,6 +47,8 @@ var async = require('async');
 var OK = 'OK';
 var ERROR = 'ERROR';
 var FORWARD_TO_FIREHOSE_STREAM = "ForwardToFirehoseStream";
+var DDB_SERVICE_NAME = "aws:dynamodb";
+var KINESIS_SERVICE_NAME = "aws:kinesis";
 var FIREHOSE_MAX_BATCH_COUNT = 500;
 // firehose max PutRecordBatch size 4MB
 var FIREHOSE_MAX_BATCH_BYTES = 4 * 1024 * 1024;
@@ -136,6 +138,31 @@ exports.getBatchRanges = function(records) {
 	return batches;
 };
 
+/**
+ * Function to create a condensed version of a dynamodb change record
+ */
+exports.createDynamoDataItem = function(record) {
+	var output = {};
+	output.Keys = record.dynamodb.Keys;
+
+	if (record.dynamodb.NewImage)
+		output.NewImage = record.dynamodb.NewImage;
+	if (record.dynamodb.OldImage)
+		output.OldImage = record.dynamodb.OldImage;
+
+	output.SequenceNumber = record.dynamodb.SequenceNumber;
+	output.SizeBytes = record.dynamodb.SizeBytes;
+	output.eventName = record.eventName;
+
+	// return a string version of the data
+	return output;
+};
+
+exports.getStreamName = function(arn) {
+	var eventSourceARNTokens = arn.split(":");
+	return eventSourceARNTokens[5].split("/")[1];
+};
+
 exports.handler = function(event, context) {
 	/** Runtime Functions */
 	var finish = function(event, status, message) {
@@ -219,21 +246,31 @@ exports.handler = function(event, context) {
 			}
 		});
 	};
+
 	/**
 	 * Function to process a Kinesis Event from AWS Lambda, and generate
 	 * requests to forward to Firehose
 	 */
-	exports.processEvent = function(event, streamName) {
+	exports.processEvent = function(event, serviceName, streamName) {
 		// look up the delivery stream name of the mapping cache
 		var deliveryStreamName = deliveryStreamMapping[streamName];
 
 		if (debug) {
-			console.log("Forwarding " + event.Records.length + " Kinesis records to Delivery Stream " + deliveryStreamName);
+			console.log("Forwarding " + event.Records.length + " " + serviceName + " records to Delivery Stream " + deliveryStreamName);
 		}
 
 		// run the user defined transformer for each record to be processed
 		async.map(event.Records, function(item, callback) {
-			transformer(new Buffer(item.kinesis.data, 'base64'), function(err, transformed) {
+			// resolve the record data based on the service
+			var data;
+
+			if (serviceName === KINESIS_SERVICE_NAME) {
+				data = new Buffer(item.kinesis.data, 'base64');
+			} else {
+				data = new Buffer(JSON.stringify(exports.createDynamoDataItem(item)));
+			}
+
+			transformer(data, function(err, transformed) {
 				if (err) {
 					console.log(JSON.stringify(err));
 					callback(err, null);
@@ -264,47 +301,61 @@ exports.handler = function(event, context) {
 	 * Function which resolves the destination delivery stream from the
 	 * specified Kinesis Stream Name, using Tags
 	 */
-	exports.buildDeliveryMap = function(streamName, event, callback) {
-		// get the delivery stream name from Kinesis tag
-		kinesis.listTagsForStream({
-			StreamName : streamName
-		}, function(err, data) {
-			if (err) {
-				finish(event, ERROR, err);
-			} else {
-				// grab the tag value if it's the foreward_to_firehose name item
-				data.Tags.map(function(item) {
-					if (item.Key === FORWARD_TO_FIREHOSE_STREAM) {
-						deliveryStreamMapping[streamName] = item.Value;
-					}
-				});
-
-				if (!deliveryStreamMapping[streamName]) {
-					// fail as the stream isn't tagged for delivery, but since
-					// there is an event source configured we think this should
-					// have been done and is probably a misconfiguration
-					finish(event, ERROR, "Warning: Kinesis Stream " + streamName + " not tagged for Firehose delivery with Tag name " + FORWARD_TO_FIREHOSE_STREAM);
+	exports.buildDeliveryMap = function(streamName, serviceName, event, callback) {
+		if (serviceName === DDB_SERVICE_NAME) {
+			// dynamodb streams need the firehose delivery stream to match
+			// the table name
+			deliveryStreamMapping[streamName] = streamName;
+			callback();
+		} else {
+			// get the delivery stream name from Kinesis tag
+			kinesis.listTagsForStream({
+				StreamName : streamName
+			}, function(err, data) {
+				if (err) {
+					finish(event, ERROR, err);
 				} else {
-					// validate the delivery stream name provided
-					var params = {
-						DeliveryStreamName : deliveryStreamMapping[streamName]
-					};
-					firehose.describeDeliveryStream(params, function(err, data) {
-						if (err) {
-							// do not continue with the cached mapping
-							delete deliveryStreamMapping[streamName];
-
-							finish(event, ERROR, "Delivery Stream " + deliveryStreamMapping[streamName] + " does not exist in region " + region);
-						} else {
-							// call the specified callback - should have already
-							// been prepared by the calling function
-							callback();
+					// grab the tag value if it's the foreward_to_firehose
+					// name
+					// item
+					data.Tags.map(function(item) {
+						if (item.Key === FORWARD_TO_FIREHOSE_STREAM) {
+							deliveryStreamMapping[streamName] = item.Value;
 						}
 					});
+
+					if (!deliveryStreamMapping[streamName]) {
+						// fail as the stream isn't tagged for delivery, but
+						// since
+						// there is an event source configured we think this
+						// should
+						// have been done and is probably a misconfiguration
+						finish(event, ERROR, "Warning: Kinesis Stream " + streamName + " not tagged for Firehose delivery with Tag name " + FORWARD_TO_FIREHOSE_STREAM);
+					} else {
+						// validate the delivery stream name provided
+						var params = {
+							DeliveryStreamName : deliveryStreamMapping[streamName]
+						};
+						firehose.describeDeliveryStream(params, function(err, data) {
+							if (err) {
+								// do not continue with the cached mapping
+								delete deliveryStreamMapping[streamName];
+
+								finish(event, ERROR, "Delivery Stream " + deliveryStreamMapping[streamName] + " does not exist in region " + region);
+							} else {
+								// call the specified callback - should have
+								// already
+								// been prepared by the calling function
+								callback();
+							}
+						});
+					}
 				}
-			}
-		});
+			});
+		}
+
 	};
+
 	/** End Runtime Functions */
 	if (debug) {
 		console.log(JSON.stringify(event));
@@ -322,13 +373,16 @@ exports.handler = function(event, context) {
 	}
 
 	// only configured to support kinesis events. Maybe support SNS in future?
-	if (event.Records[0].eventSource !== "aws:kinesis") {
+	var serviceName;
+	if (event.Records[0].eventSource === KINESIS_SERVICE_NAME || event.Records[0].eventSource === DDB_SERVICE_NAME) {
+		serviceName = event.Records[0].eventSource;
+	} else {
 		noProcessReason = "Invalid Event Source " + event.Records[0].eventSource;
 	}
 
 	// currently hard coded around the 1.0 kinesis event schema
-	if (event.Records[0].kinesis.kinesisSchemaVersion !== "1.0") {
-		noProcessReason = "Unsupported Event Schema Version " + event.Records[0].kinesis.kinesisSchemaVersion;
+	if (event.Records[0].kinesis && event.Records[0].kinesis.kinesisSchemaVersion !== "1.0") {
+		noProcessReason = "Unsupported Kinesis Event Schema Version " + event.Records[0].kinesis.kinesisSchemaVersion;
 	}
 
 	if (noProcessReason) {
@@ -336,16 +390,15 @@ exports.handler = function(event, context) {
 		finish(event, noProcessStatus, noProcessReason);
 	} else {
 		// parse the stream name out of the event
-		var eventSourceARNTokens = event.Records[0].eventSourceARN.split(":");
-		var streamName = eventSourceARNTokens[eventSourceARNTokens.length - 1].split("/")[1];
+		var streamName = exports.getStreamName(event.Records[0].eventSourceARN);
 
 		if (deliveryStreamMapping.length === 0 || !deliveryStreamMapping[streamName]) {
 			// no delivery stream cached so far, so add this stream's tag value
 			// to the delivery map, and continue with processEvent
-			exports.buildDeliveryMap(streamName, event, exports.processEvent.bind(undefined, event, streamName));
+			exports.buildDeliveryMap(streamName, serviceName, event, exports.processEvent.bind(undefined, event, serviceName, streamName));
 		} else {
 			// delivery stream is cached
-			exports.processEvent(event, streamName);
+			exports.processEvent(event, serviceName, streamName);
 		}
 	}
 };

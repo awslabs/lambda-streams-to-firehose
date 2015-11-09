@@ -1,71 +1,17 @@
 # AWS Streams to Kinesis Firehose Forwarder
 
-Kinesis Streams give customers the ability to process streaming big data at any scale with low latency and high data durability. Kinesis Firehose simplifies delivery of streaming data to Amazon S3 and Redshift with a simple, automatically scaled and zero operations service. Customers can also utilise the Kinesis Agent (http://docs.aws.amazon.com/firehose/latest/dev/writing-with-agents.html) to automatically publish file data to Kinesis Streams and/or Kinesis Firehose delivery streams. For those customers who are already using Kinesis Streams for real time processing and would also like to take advantage of Kinesis Firehose for archival of their Stream data, a simple way of pushing data from a Stream to Kinesis Firehose is needed.
-
-This project contains an AWS Lambda function which does just that, without any need for you to write code. It is highly efficient and preserves Stream data ordering. The target Firehose Delivery Stream is referenced by tagging the Kinesis Stream with the Delivery Stream name to forward to.
+Kinesis Firehose simplifies delivery of streaming data to Amazon S3 and Redshift with a simple, automatically scaled and zero operations service. Where customers have existing systems built on streaming interfaces, the addition of Firehose can enable simple archive, or be used to facilitate long term analysis of data from Amazon Redshift. Integration can be accomplished by using the Kinesis Agent (http://docs.aws.amazon.com/firehose/latest/dev/writing-with-agents.html) to automatically publish file data to Kinesis Streams and/or Kinesis Firehose delivery streams. This function enables customers who are already using Kinesis Streams for real time processing to take advantage of Kinesis Firehose. Furthermore, if you are using DynamoDB and would like to store a history of changes made to the table, this function can push events to Firehose.
 
 ![StreamToFirehose](StreamToFirehose.png)
 
 
 # Pre-requisites
 
-In order to effectively use this function, you should already have configured a Kinesis Stream, as well as a Kinesis Firehose Delivery Stream, and ensured that producer applications can write to the Stream, and that the Firehose Delivery Stream is able to deliver data to S3 or Redshift. This function makes no changes to Streams or Firehose configurations. You must also have the AWS Command Line Interface (https://aws.amazon.com/cli) installed to take advantage of the Stream Tagging utility supplied.
-
-# Deploying
-
-To use this function, simply deploy the [KinesisStreamToFirehose-1.0.0.zip](https://github.com/awslabs/kinesis-streams-to-firehose/blob/master/dist/KinesisStreamToFirehose-1.0.0.zip) to AWS Lambda. You must ensure that it is deployed with an invocation role that includes the ability to write CloudWatch Logs, Read from Kinesis and Write to Kinesis Firehose:
-
-```
-{
-    "Version": "myversion",
-    "Statement": [
-        {
-            "Sid": "Stmt1446202596000",
-            "Effect": "Allow",
-            "Action": [
-                "logs:*"
-            ],
-            "Resource": [
-                "*"
-            ]
-        },
-        {
-            "Sid": "Stmt1446202612000",
-            "Effect": "Allow",
-            "Action": [
-                "kinesis:DescribeStream",
-                "kinesis:ListStreams",
-                "kinesis:GetShardIterator",
-                "kinesis:GetRecords"
-            ],
-            "Resource": [
-                "*"
-            ]
-        },
-        {
-            "Sid": "Stmt1446202630000",
-            "Effect": "Allow",
-            "Action": [
-                "firehose:DescribeDeliveryStream",
-                "firehose:ListDeliveryStreams",
-                "firehose:PutRecord",
-                "firehose:PutRecordBatch"
-            ],
-            "Resource": [
-                "*"
-            ]
-        }
-    ]
-}
-```
-
-You may choose to restrict the IAM role to be specific to a subset of Kinesis Streams and Firehose endpoints. 
-
-Finally, create an Event Source (http://docs.aws.amazon.com/lambda/latest/dg/wt-kinesis-configure-kinesis.html) for this function from the Kinesis Stream to be forwarded to Firehose.
+In order to effectively use this function, you should already have configured a Kinesis Stream or a DynamoDB Table with Update Streams, as well as a Kinesis Firehose Delivery Stream of the correct name. For Kinesis Streams, please ensure that producer applications can write to the Stream, and that the Firehose Delivery Stream is able to deliver data to S3 or Redshift. This function makes no changes to stream or Firehose configurations. You must also have the AWS Command Line Interface (https://aws.amazon.com/cli) installed to take advantage of the Stream Tagging utility supplied.
 
 # Configuration
 
-This Lambda function uses Tag information from Amazon Kinesis to determine which Delivery Stream to forward to. To Tag the Stream for Firehose Delivery, simply run the ```tagStream.sh``` script:
+This Lambda function uses either Tag information from Amazon Kinesis Stream, or a convention to determine which Delivery Stream to forward to. If Kinesis Streams are used, the delivery stream can have any name, and to Tag the Stream for Firehose Delivery, simply run the ```tagKinesisStream.sh``` script:
 
 ```
 tagStream.sh <My Kinesis Stream> <My Firehose Delivery Stream> <region>
@@ -77,9 +23,96 @@ tagStream.sh <My Kinesis Stream> <My Firehose Delivery Stream> <region>
 
 This will add a new Stream Tag named ```ForwardToFirehoseStream``` on the Kinesis Stream with the value you supply. You can run the script any time to update this value. To view the Tags configured on the Stream, simply run ```aws kinesis list-tags-for-stream --stream-name <My Kinesis Stream> --region <region>```
 
+If you are using DynamoDB, then the Firehose Delivery Stream must be the same name as the DynamoDB Table.
+
+Only single region deployments are supported today.
+
+# Deploying
+
+To use this function, simply deploy the [LambdaStreamToFirehose-1.1.0.zip](https://github.com/awslabs/kinesis-streams-to-firehose/blob/master/dist/LambdaStreamToFirehose-1.1.0.zip) to AWS Lambda. You must ensure that it is deployed with an invocation role that includes the ability to write CloudWatch Logs, Read from Kinesis or DynamoDB Streams, and Write to Kinesis Firehose:
+
+```
+{
+  "Statement": [
+    {
+      "Action": [
+        "logs:*"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "*"
+      ],
+      "Sid": "Stmt1446202596000"
+    },
+    {
+      "Action": [
+        "kinesis:DescribeStream",
+        "kinesis:ListStreams",
+        "kinesis:GetShardIterator",
+        "kinesis:GetRecords"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "*"
+      ],
+      "Sid": "Stmt1446202612000"
+    },
+    {
+      "Action": [
+        "firehose:DescribeDeliveryStream",
+        "firehose:ListDeliveryStreams",
+        "firehose:PutRecord",
+        "firehose:PutRecordBatch"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "*"
+      ],
+      "Sid": "Stmt1446202630000"
+    },
+    {
+      "Action": [
+        "dynamodb:DescribeStream",
+        "dynamodb:DescribeTable",
+        "dynamodb:GetItem",
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator",
+        "dynamodb:ListStreams",
+        "dynamodb:ListTables"
+      ],
+      "Effect": "Allow",
+      "Resource": [
+        "*"
+      ],
+      "Sid": "Stmt1447079825000"
+    }
+  ],
+  "Version": "myversion"
+}
+```
+
+You may choose to restrict the IAM role to be specific to a subset of Kinesis or DynamoDB Update Streams and Firehose endpoints. 
+
+Finally, create an Event Source (http://docs.aws.amazon.com/lambda/latest/dg/wt-kinesis-configure-kinesis.html) for this function from the  Stream to be forwarded to Firehose.
+
 # Optional Data Transformation
 
-By default, the Lambda function is configured to Base64 decode the Kinesis Stream data and append a newline character, so that files delivered to S3 are nicely formatted, and easy to load into Amazon Redshift. However, the function also provides a user extensible mechanism to write your own transformers. If you would like to modify the data after it's read from the Kinesis Stream, but before it's forwarded to Firehose, then you can implement and register a new Javascript function with the following interface:
+This function can support streaming transformation your data. Kinesis data is Base64 decoded before being transformed, and when DynamoDB Update Streams are being forwarded, data will have the following structure:
+
+```
+{
+Keys,
+NewImage,
+OldImage,
+SequenceNumber,
+SizeBytes,
+eventName
+}
+```
+
+For more information on DynamoDB Update Streams, please read http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html.
+
+By default, the function will append a newline character to received data so that files delivered to S3 are nicely formatted, and easy to load into Amazon Redshift. However, the function also provides a framework to write your own transformers. If you would like to modify the data after it's read from the Stream, but before it's forwarded to Firehose, then you can implement and register a new Javascript function with the following interface:
 
 ```
 function(inputData, callback(err,outputData));
@@ -96,19 +129,16 @@ You then register this transformer function by assigning an instance of it to th
 var transformer = myTransformerFunction.bind(undefined, <internal setup args>);
 ```
 
-You can find the built in Base64 decode and newline addition transformer as an example below:
+You can also take advantage of a built in regex-to-csv transformer, which can be used by un-commenting and configuring the following entry in the function:
+```
+// var transformer = exports.regexToDelimiter.bind(undefined, /(myregex) (.*)/, "|");
+```
 
-```
-exports.addNewlineTransformer = function(data, callback) {
-	// emitting a new buffer as ascii text with newline
-	callback(null, new Buffer(data.toString('ascii') + "\n"));
-}
-var transformer = exports.addNewlineTransformer.bind(undefined);
-```
+Where ```/(myregex) (.*)/``` is the regular expression that uses character classes to capture data from the input stream to export to the CSV, and ```"|"``` is the delimiter.
 
 # Confirming Successful Execution
 
-When successfully configured, writes to your Kinesis Stream should be automatically forwarded to the Firehose Delivery Stream, and you'll see data arriving in Amazon S3 and optionally Amazon Redshift. You can also view CloudWatch Logs (http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/WhatIsCloudWatchLogs.html) for this Lambda function as it forwards streams.
+When successfully configured, writes to your Stream will be automatically forwarded to the Firehose Delivery Stream, and you'll see data arriving in Amazon S3 and optionally Amazon Redshift. You can also view CloudWatch Logs (http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/WhatIsCloudWatchLogs.html) for this Lambda function as it forwards streams
 
 # Debugging & Creating New Builds
 
@@ -122,9 +152,9 @@ You will then need to rebuild and redeploy the function. To do this, first insta
 
 # Technical Bits
 
-This function uses the putRecordBatch interface to Firehose to send 500 messages at a time with a max payload size of 4MB (as of 2015-11-02). The batches are processed serially so as to preserve the order of messages as they are received from Kinesis.
+This function uses the putRecordBatch interface to Firehose to send 500 messages at a time with a max payload size of 4MB (as of 2015-11-02). The batches are processed serially so as to preserve the order of messages as they are received from the Stream.
 
-Transformation creates another copy of input records, so you must plan accordingly when sizing the memory limit in AWS Lambda. Also consider that user defined transformers which significantly increase message size will need to be stored in memory before being dispatched to Firehose. If you need to limit the number of records for any reason, this can be set on the Kinesis Event Source for your function.
+Transformation creates another copy of input records, so you must plan accordingly when sizing the memory limit in AWS Lambda. Also consider that user defined transformers which significantly increase message size will need to be stored in memory before being dispatched to Firehose. If you need to limit the number of records for any reason, this can be set on the Event Source for your function.
 
 ----
 

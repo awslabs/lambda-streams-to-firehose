@@ -18,7 +18,7 @@
 
 version=`cat package.json | grep version | cut -d: -f2 | sed -e "s/\"//g" | sed -e "s/ //g" | sed -e "s/\,//g"`
 
-functionName=KinesisStreamToFirehose
+functionName=LambdaStreamToFirehose
 filename=$functionName-$version.zip
 region=eu-west-1
 
