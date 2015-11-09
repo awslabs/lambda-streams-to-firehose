@@ -26,4 +26,6 @@ rm $filename 2>&1 >> /dev/null
 
 zip -r $filename index.js package.json node_modules/ README.md LICENSE && mv -f $filename dist/$filename
 
-aws lambda update-function-code --function-name $functionName --zip-file fileb://dist/$filename --region $region
+if [ "$1" = "true" ]; then
+  aws lambda update-function-code --function-name $functionName --zip-file fileb://dist/$filename --region $region
+fi

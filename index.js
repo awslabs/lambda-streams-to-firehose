@@ -66,7 +66,7 @@ var deliveryStreamMapping = {};
 exports.addNewlineTransformer = function(data, callback) {
 	// emitting a new buffer as ascii text with newline
 	callback(null, new Buffer(data.toString('ascii') + "\n"));
-}
+};
 
 /**
  * Example transformer that converts a regular expression to delimited text
@@ -79,7 +79,7 @@ exports.regexToDelimiter = function(regex, delimiter, data, callback) {
 	} else {
 		callback("Configured Regular Expression does not match any tokens", null);
 	}
-}
+};
 var transformer = exports.addNewlineTransformer.bind(undefined);
 //
 // example regex transformer that matches all text after 'my regex' and turns it
@@ -92,7 +92,7 @@ var transformer = exports.addNewlineTransformer.bind(undefined);
  */
 exports.byteCount = function(s) {
 	return encodeURI(s).split(/%..|./).length - 1;
-}
+};
 
 /**
  * Convenience function which generates the batch set with low and high offsets
@@ -134,7 +134,7 @@ exports.getBatchRanges = function(records) {
 	}
 
 	return batches;
-}
+};
 
 exports.handler = function(event, context) {
 	/** Runtime Functions */
@@ -195,7 +195,7 @@ exports.handler = function(event, context) {
 				finish(null, OK);
 			}
 		});
-	}
+	};
 
 	/**
 	 * function which forwards a batch of kinesis records to a firehose delivery
@@ -253,7 +253,7 @@ exports.handler = function(event, context) {
 			});
 		}, function(err, transformed) {
 			if (err) {
-				finish(err, ERROR)
+				finish(err, ERROR);
 			} else {
 				exports.processTransformedRecords(transformed, streamName, deliveryStreamName);
 			}
@@ -275,7 +275,7 @@ exports.handler = function(event, context) {
 				// grab the tag value if it's the foreward_to_firehose name item
 				data.Tags.map(function(item) {
 					if (item.Key === FORWARD_TO_FIREHOSE_STREAM) {
-						deliveryStreamMapping[streamName] = item.Value
+						deliveryStreamMapping[streamName] = item.Value;
 					}
 				});
 
@@ -339,7 +339,7 @@ exports.handler = function(event, context) {
 		var eventSourceARNTokens = event.Records[0].eventSourceARN.split(":");
 		var streamName = eventSourceARNTokens[eventSourceARNTokens.length - 1].split("/")[1];
 
-		if (deliveryStreamMapping.length == 0 || !deliveryStreamMapping[streamName]) {
+		if (deliveryStreamMapping.length === 0 || !deliveryStreamMapping[streamName]) {
 			// no delivery stream cached so far, so add this stream's tag value
 			// to the delivery map, and continue with processEvent
 			exports.buildDeliveryMap(streamName, event, exports.processEvent.bind(undefined, event, streamName));
