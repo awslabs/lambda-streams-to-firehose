@@ -1,35 +1,35 @@
 # AWS Streams to Kinesis Firehose Forwarder
 
-Kinesis Firehose simplifies delivery of streaming data to Amazon S3 and Redshift with a simple, automatically scaled and zero operations service. Where customers have existing systems built on streaming interfaces, the addition of Firehose can enable simple archive, or be used to facilitate long term analysis of data from Amazon Redshift. Integration can be accomplished by using the Kinesis Agent (http://docs.aws.amazon.com/firehose/latest/dev/writing-with-agents.html) to automatically publish file data to Kinesis Streams and/or Kinesis Firehose delivery streams. This function enables customers who are already using Kinesis Streams for real time processing to take advantage of Kinesis Firehose. Furthermore, if you are using DynamoDB and would like to store a history of changes made to the table, this function can push events to Firehose.
+Amazon Kinesis Firehose simplifies delivery of streaming data to Amazon S3 and Amazon Redshift with a simple, automatically scaled, and zero operations requirement. Where customers have existing systems built on streaming interfaces, the addition of Firehose can enable simple archive, or be used to facilitate long term analysis of data from Amazon Redshift. Integration can be accomplished by using the [Kinesis Agent](http://docs.aws.amazon.com/firehose/latest/dev/writing-with-agents.html) to automatically publish file data to Amazon Kinesis Streams and/or Amazon Kinesis Firehose delivery streams. This project includes an AWS Lambda function that enables customers who are already using Amazon Kinesis Streams for real time processing to take advantage of Amazon Kinesis Firehose. Furthermore, if you are using Amazon DynamoDB and would like to store a history of changes made to the table, this function can push events to Amazon Kinesis Firehose.
 
 ![StreamToFirehose](StreamToFirehose.png)
 
 
 # Pre-requisites
 
-In order to effectively use this function, you should already have configured a Kinesis Stream or a DynamoDB Table with Update Streams, as well as a Kinesis Firehose Delivery Stream of the correct name. For Kinesis Streams, please ensure that producer applications can write to the Stream, and that the Firehose Delivery Stream is able to deliver data to S3 or Redshift. This function makes no changes to stream or Firehose configurations. You must also have the AWS Command Line Interface (https://aws.amazon.com/cli) installed to take advantage of the Stream Tagging utility supplied.
+In order to effectively use this function, you should already have configured an Amazon Kinesis Stream or an Amazon DynamoDB Table with Update Streams, as well as an Amazon Kinesis Firehose Delivery Stream of the correct name. For Amazon Kinesis Streams, please ensure that producer applications can write to the Stream, and that the Amazon Kinesis Firehose Delivery Stream is able to deliver data to Amazon S3 or Amazon Redshift. This function makes no changes to Stream or Firehose configurations. You must also have the AWS Command Line Interface (https://aws.amazon.com/cli) installed to take advantage of the Stream Tagging utility supplied.
 
 # Configuration
 
-This Lambda function uses either Tag information from Amazon Kinesis Stream, or a convention to determine which Delivery Stream to forward to. If Kinesis Streams are used, the delivery stream can have any name, and to Tag the Stream for Firehose Delivery simply run the ```tagKinesisStream.sh``` script:
+This AWS Lambda function uses either Tag information from Amazon Kinesis Stream, or a convention to determine which Delivery Stream to forward to. If Amazon Kinesis Streams are the source, the Delivery Stream can have any name, and to Tags are used to specify the Delivery Stream target. To Tag the Stream for Amazon Kinesis Firehose Delivery simply run the ```tagKinesisStream.sh``` script:
 
 ```
 tagStream.sh <My Kinesis Stream> <My Firehose Delivery Stream> <region>
 
-	<My Kinesis Stream> - The Kinesis Stream for which an event source has been created to the Forwarder Lambda function
-	<My Firehose Delivery Stream> - The Delivery Stream which you've configured to deliver to the required destination
+	<My Kinesis Stream> - The Amazon Kinesis Stream for which an event source has been created to the Forwarder Lambda function
+	<My Firehose Delivery Stream> - The Amazon Kinesis Firehose Delivery Stream which you've configured to deliver to the required destination
 	<region> - The region in which the Kinesis Stream & Firehose Delivery Stream have been created. Today only single region operation is permitted
 ```
 
 This will add a new Stream Tag named ```ForwardToFirehoseStream``` on the Kinesis Stream with the value you supply. You can run the script any time to update this value. To view the Tags configured on the Stream, simply run ```aws kinesis list-tags-for-stream --stream-name <My Kinesis Stream> --region <region>```
 
-If you are using DynamoDB, then *the Firehose Delivery Stream must be the same name as the DynamoDB Table*.
+If you are using Amazon DynamoDB, then *the Firehose Delivery Stream must be the same name as the Amazon DynamoDB Table*.
 
 Only single region deployments are supported today.
 
 # Deploying
 
-To use this function, simply deploy the [LambdaStreamToFirehose-1.1.0.zip](https://github.com/awslabs/kinesis-streams-to-firehose/blob/master/dist/LambdaStreamToFirehose-1.1.0.zip) to AWS Lambda. You must ensure that it is deployed with an invocation role that includes the ability to write CloudWatch Logs, Read from Kinesis or DynamoDB Streams, and Write to Kinesis Firehose:
+To use this function, simply deploy the [LambdaStreamToFirehose-1.1.0.zip](https://github.com/awslabs/kinesis-streams-to-firehose/blob/master/dist/LambdaStreamToFirehose-1.1.0.zip) to AWS Lambda. You must ensure that it is deployed with an invocation role that includes the ability to write Amazon CloudWatch Logs, Read from Amazon Kinesis or Amazon DynamoDB Streams, and Write to Amazon Kinesis Firehose:
 
 ```
 {
@@ -97,7 +97,7 @@ Finally, create an Event Source (http://docs.aws.amazon.com/lambda/latest/dg/int
 
 # Optional Data Transformation
 
-This function can support streaming transformation your data. Kinesis data is Base64 decoded before being transformed, and when DynamoDB Update Streams are being forwarded, data will have the following structure:
+This Lambda function can support streaming transformation your data. Kinesis data is base64-decoded before being transformed, and when DynamoDB Update Streams are being forwarded, data will have the following structure:
 
 ```
 {
@@ -117,7 +117,7 @@ By default, the function will append a newline character to received data so tha
 ```
 function(inputData, callback(err,outputData));
 
-inputData: base64 encoded Buffer containing kinesis data
+inputData: base64 or ascii encoded Buffer containing stream data
 callback: function to be invoked once transformation is completed, with arguments:
 	err: Any errors that were found during transformation
 	outputData: Buffer instance (typically 'ascii' encoded) which will be forwarded to Firehose
@@ -138,17 +138,17 @@ Where ```/(myregex) (.*)/``` is the regular expression that uses character class
 
 # Confirming Successful Execution
 
-When successfully configured, writes to your Stream will be automatically forwarded to the Firehose Delivery Stream, and you'll see data arriving in Amazon S3 and optionally Amazon Redshift. You can also view CloudWatch Logs (http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/WhatIsCloudWatchLogs.html) for this Lambda function as it forwards streams
+When successfully configured, writes to your Stream will be automatically forwarded to the Firehose Delivery Stream, and you'll see data arriving in Amazon S3 and optionally Amazon Redshift. You can also view [CloudWatch Logs](http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/WhatIsCloudWatchLogs.html) for this Lambda function as it forwards stream data to Firehose
 
 # Debugging & Creating New Builds
 
-If you write a new transformer, you may wish to see debug logging in the CloudWatch Logging Stream generated for function execution. If so, then simply change 'false' to 'true' on the first line of the function:
+If you write a new transformer, you may wish to see debug logging in the CloudWatch Logs Stream. If so, then simply change 'false' to 'true' on the first line of the function:
 
 ```
 var debug = true;
 ```
 
-You will then need to rebuild and redeploy the function. To do this, first install the required dependencies with ```npm install```, and then you can deploy a new version of the function with the ```build.sh``` script included in the repository. This will automatically redeploy the function using name 'KinesisStreamToFirehose'. If you have deployed your function as a different name, then please update this line in ```build.sh```
+You will then need to rebuild and redeploy the function. To do this, first install the required dependencies with ```npm install```, and then you can deploy a new version of the function with the ```build.sh``` script included in the repository. This will automatically redeploy the function using name 'LambdaStreamToFirehose'. If you have deployed your function as a different name, then please update the name in ```build.sh```
 
 # Technical Bits
 
