@@ -11,11 +11,27 @@ In order to effectively use this function, you should already have configured an
 
 # Configuration
 
-This AWS Lambda function uses either Tag information from Amazon Kinesis Stream, or a convention to determine which Delivery Stream to forward to. If Amazon Kinesis Streams are the source, the Delivery Stream can have any name, and to Tags are used to specify the Delivery Stream target. To Tag the Stream for Amazon Kinesis Firehose Delivery simply run the ```tagKinesisStream.sh``` script:
+This Lambda functions can map stream sources to Kinesis Firehose Delivery Streams in a few different ways (listed in order of preference):
+* Manually specified configuration (see [index.js:63](index.js#L63))
+* A DynamoDB stream naming convention to determine which Delivery Stream to forward to
+* An Kinesis Stream Tagging convention
+* (Optionally) A default delivery stream.
+
+## Using the Default Delivery Stream
+In order to make sure that data will always be accepted by a Kinesis Firehose Delivery Stream this Lambda function can fail back to a default Delivery Stream if no manual configuration or other lookup has results.
+
+This can be particularly helpful when developing and testing the integration of new data sources. In such cases you could have use the Default Delivery Stream to forward data to an S3 bucket with a one day retention period as specified in an [S3 Lifecycle Policy](http://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html).
+
+The Default Delivery Stream is enabled by default in the Lambda function, however to use it there should be a Kinesis Firehose with a matching name. You can use the [createDefaultDeliveryStream.sh](createDefaultDeliveryStream.sh) script to orchestrate its creation.
+
+*Note: We recommend the usage of default delivery streams only for non-production workloads. They can be disabled by setting ```USE_DEFAULT_DELIVERY_STREAMS = false``` (see [index.js:61](index.js#L61))*
+
+## Specifying a Delivery Stream for a Kinesis Stream Source
+If Amazon Kinesis Streams are the source, the Delivery Stream can be specified in configuration or tags can be used to specify the Delivery Stream target. To Tag the Stream for Amazon Kinesis Firehose Delivery simply run the ```tagKinesisStream.sh``` script:
 
 ```
 tagStream.sh <My Kinesis Stream> <My Firehose Delivery Stream> <region>
-
+where
 	<My Kinesis Stream> - The Amazon Kinesis Stream for which an event source has been created to the Forwarder Lambda function
 	<My Firehose Delivery Stream> - The Amazon Kinesis Firehose Delivery Stream which you've configured to deliver to the required destination
 	<region> - The region in which the Kinesis Stream & Firehose Delivery Stream have been created. Today only single region operation is permitted
@@ -23,13 +39,14 @@ tagStream.sh <My Kinesis Stream> <My Firehose Delivery Stream> <region>
 
 This will add a new Stream Tag named ```ForwardToFirehoseStream``` on the Kinesis Stream with the value you supply. You can run the script any time to update this value. To view the Tags configured on the Stream, simply run ```aws kinesis list-tags-for-stream --stream-name <My Kinesis Stream> --region <region>```
 
-If you are using Amazon DynamoDB, then *the Firehose Delivery Stream must be the same name as the Amazon DynamoDB Table*.
-
-Only single region deployments are supported today.
+## Specifying a Delivery Stream for a DynamoDB Stream Source
+If you are using Amazon DynamoDB, then manual configuration can be used or the Firehose Delivery Stream should have the same name as the Amazon DynamoDB Table.
 
 # Deploying
 
-To use this function, simply deploy the [LambdaStreamToFirehose-1.1.0.zip](https://github.com/awslabs/kinesis-streams-to-firehose/blob/master/dist/LambdaStreamToFirehose-1.1.0.zip) to AWS Lambda. You must ensure that it is deployed with an invocation role that includes the ability to write Amazon CloudWatch Logs, Read from Amazon Kinesis or Amazon DynamoDB Streams, and Write to Amazon Kinesis Firehose:
+*Note: Only single region deployments are supported today.*
+
+To use this function, simply deploy the [LambdaStreamToFirehose-1.1.1.zip](https://github.com/awslabs/kinesis-streams-to-firehose/blob/master/dist/LambdaStreamToFirehose-1.1.1.zip) to AWS Lambda. You must ensure that it is deployed with an invocation role that includes the ability to write Amazon CloudWatch Logs, Read from Amazon Kinesis or Amazon DynamoDB Streams, and Write to Amazon Kinesis Firehose:
 
 ```
 {
@@ -91,7 +108,7 @@ To use this function, simply deploy the [LambdaStreamToFirehose-1.1.0.zip](https
 }
 ```
 
-You may choose to restrict the IAM role to be specific to a subset of Kinesis or DynamoDB Update Streams and Firehose endpoints. 
+You may choose to restrict the IAM role to be specific to a subset of Kinesis or DynamoDB Update Streams and Firehose endpoints.
 
 Finally, create an Event Source (http://docs.aws.amazon.com/lambda/latest/dg/intro-core-components.html) for this function from the Stream to be forwarded to Firehose.
 
