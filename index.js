@@ -68,7 +68,7 @@ var USE_DEFAULT_DELIVERY_STREAMS = true;
  *   FORWARD_TO_FIREHOSE_STREAM tag value: deliveryStreamName
  */
 var deliveryStreamMapping = {
-	DEFAULT: 'LambdaStreamsDefaultDeliveryStream'
+	'DEFAULT': 'LambdaStreamsDefaultDeliveryStream'
 };
 
 /**
@@ -202,6 +202,9 @@ exports.handler = function(event, context) {
 	 * record.
 	 */
 	exports.processTransformedRecords = function(transformed, streamName, deliveryStreamName) {
+		if (debug) {
+			console.log('Processing transformed records');
+		}
 		// get the set of batch offsets based on the transformed record sizes
 		var batches = exports.getBatchRanges(transformed);
 
@@ -245,6 +248,9 @@ exports.handler = function(event, context) {
 	 * stream
 	 */
 	exports.writeToFirehose = function(firehoseBatch, streamName, deliveryStreamName, callback) {
+		if (debug) {
+			console.log('Writing to firehose');
+		}
 		// write the batch to firehose with putRecordBatch
 		var putRecordBatchParams = {
 			DeliveryStreamName : deliveryStreamName,
@@ -268,6 +274,9 @@ exports.handler = function(event, context) {
 	 * requests to forward to Firehose
 	 */
 	exports.processEvent = function(event, serviceName, streamName) {
+		if (debug) {
+			console.log('Processing event');
+		}
 		// look up the delivery stream name of the mapping cache
 		var deliveryStreamName = deliveryStreamMapping[streamName];
 
@@ -318,16 +327,19 @@ exports.handler = function(event, context) {
 	 * specified Kinesis Stream Name, using Tags
 	 */
 	exports.buildDeliveryMap = function(streamName, serviceName, event, callback) {
+		if (debug) {
+			console.log('Building delivery stream mapping');
+		}
 		if (deliveryStreamMapping[streamName]) {
 			// A delivery stream has already been specified in configuration
 			// This could be indicative of debug usage.
 			USE_DEFAULT_DELIVERY_STREAMS = false;
-			verifyDeliveryStreamMapping(streamName, event, callback);
+			exports.verifyDeliveryStreamMapping(streamName, event, callback);
 		} else if (serviceName === DDB_SERVICE_NAME) {
 			// dynamodb streams need the firehose delivery stream to match
 			// the table name
 			deliveryStreamMapping[streamName] = streamName;
-			verifyDeliveryStreamMapping(streamName, event, callback);
+			exports.verifyDeliveryStreamMapping(streamName, event, callback);
 		} else {
 			// get the delivery stream name from Kinesis tag
 			kinesis.listTagsForStream({
@@ -350,13 +362,16 @@ exports.handler = function(event, context) {
 						}
 					});
 
-					verifyDeliveryStreamMapping(streamName, event, callback);
+					exports.verifyDeliveryStreamMapping(streamName, event, callback);
 				}
 			});
 		}
 	};
 
 	exports.verifyDeliveryStreamMapping = function(streamName, event, callback) {
+		if (debug) {
+			console.log('Verifying delivery stream');
+		}
 		if (!deliveryStreamMapping[streamName]) {
 			if (USE_DEFAULT_DELIVERY_STREAMS) {
 				/* No delivery stream has been specified, probably as it's not 
@@ -364,7 +379,7 @@ exports.handler = function(event, context) {
 				 * To prevent accidental forwarding of streams to a firehose set
 				 * USE_DEFAULT_DELIVERY_STREAMS = false.
 				 */
-				deliveryStreamMapping[streamName] = deliveryStreamMapping[DEFAULT];
+				deliveryStreamMapping[streamName] = deliveryStreamMapping['DEFAULT'];
 			} else {
 				/*
 				 * Fail as no delivery stream mapping has been specified and we
@@ -385,10 +400,11 @@ exports.handler = function(event, context) {
 				// do not continue with the cached mapping
 				delete deliveryStreamMapping[streamName];
 
-				if (!USE_DEFAULT_DELIVERY_STREAMS || deliveryStreamMapping[streamName] == deliveryStreamMapping[DEFAULT]) {
+				if (!USE_DEFAULT_DELIVERY_STREAMS || deliveryStreamMapping[streamName] == deliveryStreamMapping['DEFAULT']) {
 					finish(event, ERROR, "Delivery Stream " + deliveryStreamMapping[streamName] + " does not exist in region " + region);
 				} else {
-					deliveryStreamMapping[streamName] = deliveryStreamMapping[DEFAULT];
+					deliveryStreamMapping[streamName] = deliveryStreamMapping['DEFAULT'];
+					exports.verifyDeliveryStreamMapping(streamName, event, callback);
 				}
 			} else {
 				// call the specified callback - should have
@@ -435,7 +451,7 @@ exports.handler = function(event, context) {
 		// parse the stream name out of the event
 		var streamName = exports.getStreamName(event.Records[0].eventSourceARN);
 
-		if (deliveryStreamMapping.length === 0 || !deliveryStreamMapping[streamName]) {
+		if (!deliveryStreamMapping[streamName]) {
 			// no delivery stream cached so far, so add this stream's tag value
 			// to the delivery map, and continue with processEvent
 			exports.buildDeliveryMap(streamName, serviceName, event, exports.processEvent.bind(undefined, event, serviceName, streamName));
