@@ -49,7 +49,8 @@ To use this function, simply deploy the [LambdaStreamToFirehose-1.1.0.zip](https
         "kinesis:DescribeStream",
         "kinesis:ListStreams",
         "kinesis:GetShardIterator",
-        "kinesis:GetRecords"
+        "kinesis:GetRecords",
+        "kinesis:ListTagsForStream"
       ],
       "Effect": "Allow",
       "Resource": [
