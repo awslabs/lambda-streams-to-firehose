@@ -28,6 +28,6 @@ if [ $? != 0 ]; then
 	exit -2
 fi
 
-aws kinesis add-tags-to-stream --stream-name $1 --Tags ForwardToFirehoseStream=$2 --region $3
+aws kinesis add-tags-to-stream --stream-name $1 --tags ForwardToFirehoseStream=$2 --region $3
 
 aws kinesis list-tags-for-stream --stream-name $1 --region $3
