@@ -21,7 +21,7 @@ tagStream.sh <My Kinesis Stream> <My Firehose Delivery Stream> <region>
 	<region> - The region in which the Kinesis Stream & Firehose Delivery Stream have been created. Today only single region operation is permitted
 ```
 
-This will add a new Stream Tag named ```ForwardToFirehoseStream``` on the Kinesis Stream with the value you supply. You can run the script any time to update this value. To view the Tags configured on the Stream, simply run ```aws kinesis list-tags-for-stream --stream-name <My Kinesis Stream> --region <region>```
+This will add a new Stream Tag named ```ForwardToFirehoseStream``` on the Kinesis Stream with the value you supply. This is limited to delivery in the same region as the Kinesis Stream or DynamoDB table. You can run the script any time to update this value. To view the Tags configured on the Stream, simply run ```aws kinesis list-tags-for-stream --stream-name <My Kinesis Stream> --region <region>```
 
 If you are using Amazon DynamoDB, then *the Firehose Delivery Stream must be the same name as the Amazon DynamoDB Table*.
 
@@ -29,7 +29,7 @@ Only single region deployments are supported today.
 
 # Deploying
 
-To use this function, simply deploy the [LambdaStreamToFirehose-1.1.0.zip](https://github.com/awslabs/kinesis-streams-to-firehose/blob/master/dist/LambdaStreamToFirehose-1.1.0.zip) to AWS Lambda. You must ensure that it is deployed with an invocation role that includes the ability to write Amazon CloudWatch Logs, Read from Amazon Kinesis or Amazon DynamoDB Streams, and Write to Amazon Kinesis Firehose:
+To use this function, simply deploy the [LambdaStreamToFirehose-1.1.0.zip](https://github.com/awslabs/kinesis-streams-to-firehose/blob/master/dist/LambdaStreamToFirehose-1.1.0.zip) to AWS Lambda with handler `index.handler`. You must ensure that it is deployed with an invocation role that includes the ability to write Amazon CloudWatch Logs, Read from Amazon Kinesis or Amazon DynamoDB Streams, and Write to Amazon Kinesis Firehose:
 
 ```
 {
@@ -118,7 +118,7 @@ By default, the function will append a newline character to received data so tha
 ```
 function(inputData, callback(err,outputData));
 
-inputData: base64 or ascii encoded Buffer containing stream data
+inputData: Object containing stream data. For Kinesis, the input is a base64 decoded string, while for DynamoDB it is a JSON object
 callback: function to be invoked once transformation is completed, with arguments:
 	err: Any errors that were found during transformation
 	outputData: Buffer instance (typically 'ascii' encoded) which will be forwarded to Firehose

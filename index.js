@@ -18,30 +18,20 @@ limitations under the License.
 var debug = false;
 
 var pjson = require('./package.json');
-var region = process.env['AWS_REGION'];
-
-if (!region || region === null || region === "") {
-	region = "us-east-1";
-	console.log("Warning: Setting default region " + region);
-}
+var setRegion = process.env['AWS_REGION'];
+var deagg = require('aws-kpl-deagg');
 
 if (debug) {
-	console.log("AWS Streams to Firehose Forwarder v" + pjson.version + " in " + region);
+	console.log("AWS Streams to Firehose Forwarder v" + pjson.version + " in " + setRegion);
 }
 
 var aws = require('aws-sdk');
-aws.config.update({
-	region : region
-});
+var firehose;
+exports.firehose = firehose;
+var kinesis;
+exports.kinesis = kinesis;
+var online = false;
 
-var firehose = new aws.Firehose({
-	apiVersion : '2015-08-04',
-	region : region
-});
-var kinesis = new aws.Kinesis({
-	apiVersion : '2013-12-02',
-	region : region
-});
 var async = require('async');
 
 var OK = 'OK';
@@ -53,48 +43,91 @@ var FIREHOSE_MAX_BATCH_COUNT = 500;
 // firehose max PutRecordBatch size 4MB
 var FIREHOSE_MAX_BATCH_BYTES = 4 * 1024 * 1024;
 
+// should KPL checksums be calculated?
+var computeChecksums = true;
+
 var deliveryStreamMapping = {};
+
+var start;
+
+function init() {
+	if (!online) {
+		if (!setRegion || setRegion === null || setRegion === "") {
+			setRegion = "us-east-1";
+			console.log("Warning: Setting default region " + setRegion);
+		}
+
+		aws.config.update({
+			region : setRegion
+		});
+
+		// configure a new connection to firehose, if one has not been provided
+		if (!exports.firehose) {
+			if (debug) {
+				console.log("Connecting to Amazon Kinesis Firehose in " + setRegion);
+			}
+			exports.firehose = new aws.Firehose({
+				apiVersion : '2015-08-04',
+				region : setRegion
+			});
+		}
+
+		// configure a new connection to kinesis streams, if one has not been
+		// provided
+		if (!exports.kinesis) {
+			if (debug) {
+				console.log("Connecting to Amazon Kinesis Streams in " + setRegion);
+			}
+			exports.kinesis = new aws.Kinesis({
+				apiVersion : '2013-12-02',
+				region : setRegion
+			});
+		}
+
+		online = true;
+	}
+}
 
 /**
  * Example transformer that adds a newline to each event
  * 
  * Args:
  * 
- * data - base64 encoded Buffer containing kinesis data
+ * data - Object or string containing the data to be transformed
  * 
- * callback(err,data) - callback to be called once transformation is completed.
- * data can be undefined if a filter is implemented
+ * callback(err, Buffer) - callback to be called once transformation is
+ * completed. If supplied callback is with a null/undefined output (such as
+ * filtering) then nothing will be sent to Firehose
  */
 exports.addNewlineTransformer = function(data, callback) {
 	// emitting a new buffer as ascii text with newline
-	callback(null, new Buffer(data.toString('ascii') + "\n"));
+	callback(null, new Buffer(JSON.stringify(data) + "\n"));
 };
 
 /**
  * Example transformer that converts a regular expression to delimited text
  */
 exports.regexToDelimiter = function(regex, delimiter, data, callback) {
-	var tokens = data.toString('ascii').match(regex);
+	var tokens = JSON.stringify(data).match(regex);
 
 	if (tokens) {
+		// emitting a new buffer as delimited text whose contents are the regex
+		// character classes
 		callback(null, new Buffer(tokens.slice(1).join(delimiter) + "\n"));
 	} else {
 		callback("Configured Regular Expression does not match any tokens", null);
 	}
 };
-var transformer = exports.addNewlineTransformer.bind(undefined);
 //
-// example regex transformer that matches all text after 'my regex' and turns it
-// into pipe delimited text
+// example regex transformer
 // var transformer = exports.regexToDelimiter.bind(undefined, /(myregex) (.*)/,
 // "|");
 
-/**
- * Function which returns the byte length of a string
+/*
+ * create the transformer instance - change this to be regexToDelimter, or your
+ * own new function
  */
-exports.byteCount = function(s) {
-	return encodeURI(s).split(/%..|./).length - 1;
-};
+var transformer = exports.addNewlineTransformer.bind(undefined);
 
 /**
  * Convenience function which generates the batch set with low and high offsets
@@ -113,7 +146,7 @@ exports.getBatchRanges = function(records) {
 	for (var i = 0; i < records.length; i++) {
 		// need to calculate the total record size for the call to Firehose on
 		// the basis of of non-base64 encoded values
-		recordSize = exports.byteCount(records[i].Data.toString('ascii'));
+		recordSize = Buffer.byteLength(records[i].Data, 'ascii');
 
 		// batch always has 1 entry, so add it first
 		batchCurrentBytes += recordSize;
@@ -139,7 +172,9 @@ exports.getBatchRanges = function(records) {
 };
 
 /**
- * Function to create a condensed version of a dynamodb change record
+ * Function to create a condensed version of a dynamodb change record. This is
+ * returned as a base64 encoded Buffer so as to implement the same interface
+ * used for transforming kinesis records
  */
 exports.createDynamoDataItem = function(record) {
 	var output = {};
@@ -150,21 +185,27 @@ exports.createDynamoDataItem = function(record) {
 	if (record.dynamodb.OldImage)
 		output.OldImage = record.dynamodb.OldImage;
 
+	// add the sequence number and other metadata
 	output.SequenceNumber = record.dynamodb.SequenceNumber;
 	output.SizeBytes = record.dynamodb.SizeBytes;
 	output.eventName = record.eventName;
 
-	// return a string version of the data
 	return output;
 };
 
+/** function to extract the kinesis stream name from a kinesis stream ARN */
 exports.getStreamName = function(arn) {
-	var eventSourceARNTokens = arn.split(":");
-	return eventSourceARNTokens[5].split("/")[1];
+	try {
+		var eventSourceARNTokens = arn.split(":");
+		return eventSourceARNTokens[5].split("/")[1];
+	} catch (e) {
+		console.log("Malformed Kinesis Stream ARN");
+		return;
+	}
 };
 
+/** AWS Lambda event handler */
 exports.handler = function(event, context) {
-	/** Runtime Functions */
 	var finish = function(event, status, message) {
 		console.log("Processing Complete");
 
@@ -218,7 +259,7 @@ exports.handler = function(event, context) {
 				console.log("Forwarding failure after " + result + " successful batches");
 				finish(err, ERROR);
 			} else {
-				console.log("Event forwarding complete. Forwarded " + result + " batches comprising " + event.Records.length + " records to Firehose " + deliveryStreamName);
+				console.log("Event forwarding complete. Forwarded " + result + " batches comprising " + transformed.length + " records to Firehose " + deliveryStreamName);
 				finish(null, OK);
 			}
 		});
@@ -234,13 +275,16 @@ exports.handler = function(event, context) {
 			DeliveryStreamName : deliveryStreamName,
 			Records : firehoseBatch
 		};
-		firehose.putRecordBatch(putRecordBatchParams, function(err, data) {
+
+		var startTime = new Date().getTime();
+		exports.firehose.putRecordBatch(putRecordBatchParams, function(err, data) {
 			if (err) {
 				console.log(JSON.stringify(err));
 				callback(err);
 			} else {
 				if (debug) {
-					console.log("Successfully wrote " + firehoseBatch.length + " records to Firehose " + deliveryStreamName);
+					var elapsedMs = new Date().getTime() - startTime;
+					console.log("Successfully wrote " + firehoseBatch.length + " records to Firehose " + deliveryStreamName + " in " + elapsedMs + " ms");
 				}
 				callback();
 			}
@@ -248,51 +292,83 @@ exports.handler = function(event, context) {
 	};
 
 	/**
-	 * Function to process a Kinesis Event from AWS Lambda, and generate
+	 * Function to process a stream event received by AWS Lambda, and generate
 	 * requests to forward to Firehose
 	 */
 	exports.processEvent = function(event, serviceName, streamName) {
-		// look up the delivery stream name of the mapping cache
+		// look up the delivery stream name in the mapping cache
 		var deliveryStreamName = deliveryStreamMapping[streamName];
 
 		if (debug) {
 			console.log("Forwarding " + event.Records.length + " " + serviceName + " records to Delivery Stream " + deliveryStreamName);
 		}
 
-		// run the user defined transformer for each record to be processed
-		async.map(event.Records, function(item, callback) {
+		async.map(event.Records, function(item, recordCallback) {
 			// resolve the record data based on the service
-			var data;
-
 			if (serviceName === KINESIS_SERVICE_NAME) {
-				data = new Buffer(item.kinesis.data, 'base64');
-			} else {
-				data = new Buffer(JSON.stringify(exports.createDynamoDataItem(item)));
-			}
-
-			transformer(data, function(err, transformed) {
-				if (err) {
-					console.log(JSON.stringify(err));
-					callback(err, null);
-				} else {
-					if (transformed) {
-						if (!(transformed instanceof Buffer)) {
-							callback("Output of Transformer must be an instance of Buffer", null);
-						} else {
-							// call the map callback with the transformed Buffer
-							// decorated for use as a Firehose batch entry
-							callback(null, {
-								Data : transformed
-							});
-						}
+				// run the record through the KPL deaggregator
+				deagg.deaggregateSync(item.kinesis, computeChecksums, function(err, userRecords) {
+					// userRecords now has all the deaggregated user records, or
+					// just the original record if no KPL aggregation is in
+					// use
+					if (err) {
+						recordCallback(err);
+					} else {
+						recordCallback(null, userRecords);
 					}
-				}
-			});
-		}, function(err, transformed) {
+				});
+			} else {
+				// dynamo update stream record
+				var data = exports.createDynamoDataItem(item);
+
+				recordCallback(null, data);
+			}
+		}, function(err, extractedUserRecords) {
 			if (err) {
 				finish(err, ERROR);
 			} else {
-				exports.processTransformedRecords(transformed, streamName, deliveryStreamName);
+				// extractedUserRecords will be array[array[Object]], so
+				// flatten to array[Object]
+				var userRecords = [].concat.apply([], extractedUserRecords);
+
+				// transform the user records
+				async.map(userRecords, function(userRecord, userRecordCallback) {
+					var dataItem = serviceName === KINESIS_SERVICE_NAME ? new Buffer(userRecord.data, 'base64').toString('ascii') : userRecord;
+
+					// only transform the data portion of a kinesis record, or
+					// the entire dynamo record
+					transformer(dataItem, function(err, transformed) {
+						if (err) {
+							console.log(JSON.stringify(err));
+							userRecordCallback(err);
+						} else {
+							if (transformed) {
+								// transformed should be a buffer type, as we
+								// want to limit the need for preprocessing
+								// before emitting to firehose
+								if (!(transformed instanceof Buffer)) {
+									userRecordCallback("Output of Transformer must be an instance of Buffer");
+								} else {
+									// call the map callback with the
+									// transformed Buffer
+									// decorated for use as a Firehose batch
+									// entry
+									userRecordCallback(null, {
+										Data : transformed
+									});
+								}
+							}
+						}
+					});
+				}, function(err, transformed) {
+					// user records have now been transformed, so call
+					// errors or invoke the transformed record processor
+					if (err) {
+						finish(err, ERROR);
+					} else {
+						exports.processTransformedRecords(transformed, streamName, deliveryStreamName);
+					}
+				});
 			}
 		});
 	};
@@ -309,15 +385,14 @@ exports.handler = function(event, context) {
 			callback();
 		} else {
 			// get the delivery stream name from Kinesis tag
-			kinesis.listTagsForStream({
+			exports.kinesis.listTagsForStream({
 				StreamName : streamName
 			}, function(err, data) {
 				if (err) {
 					finish(event, ERROR, err);
 				} else {
 					// grab the tag value if it's the foreward_to_firehose
-					// name
-					// item
+					// name item
 					data.Tags.map(function(item) {
 						if (item.Key === FORWARD_TO_FIREHOSE_STREAM) {
 							deliveryStreamMapping[streamName] = item.Value;
@@ -326,26 +401,26 @@ exports.handler = function(event, context) {
 
 					if (!deliveryStreamMapping[streamName]) {
 						// fail as the stream isn't tagged for delivery, but
-						// since
-						// there is an event source configured we think this
-						// should
-						// have been done and is probably a misconfiguration
+						// since there is an event source configured we think
+						// this
+						// should have been done and is probably a
+						// misconfiguration
 						finish(event, ERROR, "Warning: Kinesis Stream " + streamName + " not tagged for Firehose delivery with Tag name " + FORWARD_TO_FIREHOSE_STREAM);
 					} else {
 						// validate the delivery stream name provided
 						var params = {
 							DeliveryStreamName : deliveryStreamMapping[streamName]
 						};
-						firehose.describeDeliveryStream(params, function(err, data) {
+						exports.firehose.describeDeliveryStream(params, function(err, data) {
 							if (err) {
 								// do not continue with the cached mapping
+								var deliveryStream = deliveryStreamMapping[streamName];
 								delete deliveryStreamMapping[streamName];
 
-								finish(event, ERROR, "Delivery Stream " + deliveryStreamMapping[streamName] + " does not exist in region " + region);
+								finish(event, ERROR, "Delivery Stream " + deliveryStream + " does not exist in region " + setRegion);
 							} else {
 								// call the specified callback - should have
-								// already
-								// been prepared by the calling function
+								// already been prepared by the calling function
 								callback();
 							}
 						});
@@ -356,10 +431,9 @@ exports.handler = function(event, context) {
 
 	};
 
-	/** End Runtime Functions */
-	if (debug) {
-		console.log(JSON.stringify(event));
-	}
+	/*
+	 * if (debug) { console.log(JSON.stringify(event)); }
+	 */
 
 	// fail the function if the wrong event source type is being sent, or if
 	// there is no data, etc
@@ -372,7 +446,6 @@ exports.handler = function(event, context) {
 		noProcessStatus = OK;
 	}
 
-	// only configured to support kinesis events. Maybe support SNS in future?
 	var serviceName;
 	if (event.Records[0].eventSource === KINESIS_SERVICE_NAME || event.Records[0].eventSource === DDB_SERVICE_NAME) {
 		serviceName = event.Records[0].eventSource;
@@ -389,16 +462,24 @@ exports.handler = function(event, context) {
 		// terminate if there were any non process reasons
 		finish(event, noProcessStatus, noProcessReason);
 	} else {
+		init();
+
 		// parse the stream name out of the event
 		var streamName = exports.getStreamName(event.Records[0].eventSourceARN);
 
-		if (deliveryStreamMapping.length === 0 || !deliveryStreamMapping[streamName]) {
-			// no delivery stream cached so far, so add this stream's tag value
-			// to the delivery map, and continue with processEvent
-			exports.buildDeliveryMap(streamName, serviceName, event, exports.processEvent.bind(undefined, event, serviceName, streamName));
+		if (!streamName) {
+			finish(event, ERROR, "Malformed Kinesis Stream ARN");
 		} else {
-			// delivery stream is cached
-			exports.processEvent(event, serviceName, streamName);
+
+			if (deliveryStreamMapping.length === 0 || !deliveryStreamMapping[streamName]) {
+				// no delivery stream cached so far, so add this stream's tag
+				// value
+				// to the delivery map, and continue with processEvent
+				exports.buildDeliveryMap(streamName, serviceName, event, exports.processEvent.bind(undefined, event, serviceName, streamName));
+			} else {
+				// delivery stream is cached
+				exports.processEvent(event, serviceName, streamName);
+			}
 		}
 	}
 };
