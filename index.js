@@ -24,8 +24,15 @@ var deagg = require('aws-kpl-deagg');
 if (debug) {
 	console.log("AWS Streams to Firehose Forwarder v" + pjson.version + " in " + setRegion);
 }
-
+var http = require('http');
 var aws = require('aws-sdk');
+
+// firehose forwarder user agent
+var userAgentString = "LambdaStreamsToFirehose/" + pjson.version;
+aws.config.httpOptions.agent = new http.Agent({
+	name : http.globalAgent + " " + userAgentString
+});
+
 var firehose;
 exports.firehose = firehose;
 var kinesis;
@@ -146,7 +153,7 @@ exports.getBatchRanges = function(records) {
 	for (var i = 0; i < records.length; i++) {
 		// need to calculate the total record size for the call to Firehose on
 		// the basis of of non-base64 encoded values
-		recordSize = Buffer.byteLength(records[i].Data.toString('ascii'),'ascii');
+		recordSize = Buffer.byteLength(records[i].Data.toString('ascii'), 'ascii');
 
 		// batch always has 1 entry, so add it first
 		batchCurrentBytes += recordSize;
