@@ -146,7 +146,7 @@ exports.getBatchRanges = function(records) {
 	for (var i = 0; i < records.length; i++) {
 		// need to calculate the total record size for the call to Firehose on
 		// the basis of of non-base64 encoded values
-		recordSize = Buffer.byteLength(records[i].Data, 'ascii');
+		recordSize = Buffer.byteLength(records[i].Data.toString('ascii'),'ascii');
 
 		// batch always has 1 entry, so add it first
 		batchCurrentBytes += recordSize;
