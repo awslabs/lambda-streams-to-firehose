@@ -21,10 +21,6 @@ var pjson = require('./package.json');
 var setRegion = process.env['AWS_REGION'];
 var deagg = require('aws-kpl-deagg');
 
-if (debug) {
-	console.log("AWS Streams to Firehose Forwarder v" + pjson.version + " in " + setRegion);
-}
-
 var aws = require('aws-sdk');
 var firehose;
 exports.firehose = firehose;
@@ -57,6 +53,10 @@ function init() {
 			console.log("Warning: Setting default region " + setRegion);
 		}
 
+		if (debug) {
+			console.log("AWS Streams to Firehose Forwarder v" + pjson.version + " in " + setRegion);
+		}
+		
 		aws.config.update({
 			region : setRegion
 		});
