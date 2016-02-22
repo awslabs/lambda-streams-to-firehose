@@ -29,7 +29,7 @@ Only single region deployments are supported today.
 
 # Deploying
 
-To use this function, simply deploy the [LambdaStreamToFirehose-1.1.0.zip](https://github.com/awslabs/kinesis-streams-to-firehose/blob/master/dist/LambdaStreamToFirehose-1.1.0.zip) to AWS Lambda with handler `index.handler`. You must ensure that it is deployed with an invocation role that includes the ability to write Amazon CloudWatch Logs, Read from Amazon Kinesis or Amazon DynamoDB Streams, and Write to Amazon Kinesis Firehose:
+To use this function, simply deploy the [LambdaStreamToFirehose-1.2.0.zip](https://github.com/awslabs/lambda-streams-to-firehose/blob/master/dist/LambdaStreamToFirehose-1.2.0.zip) to AWS Lambda with handler `index.handler`. You must ensure that it is deployed with an invocation role that includes the ability to write Amazon CloudWatch Logs, Read from Amazon Kinesis or Amazon DynamoDB Streams, and Write to Amazon Kinesis Firehose:
 
 ```
 {
