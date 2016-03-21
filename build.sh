@@ -22,6 +22,8 @@ functionName=LambdaStreamToFirehose
 filename=$functionName-$version.zip
 region=eu-west-1
 
+npm install
+
 rm $filename 2>&1 >> /dev/null
 
 zip -r $filename index.js package.json node_modules/ README.md LICENSE && mv -f $filename dist/$filename
