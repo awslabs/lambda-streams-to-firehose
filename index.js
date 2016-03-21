@@ -470,13 +470,14 @@ exports.handler = function(event, context) {
 		var params = {
 			DeliveryStreamName : deliveryStreamMapping[streamName]
 		};
-		firehose.describeDeliveryStream(params, function(err, data) {
+		exports.firehose.describeDeliveryStream(params, function(err, data) {
 			if (err) {
 				// do not continue with the cached mapping
 				delete deliveryStreamMapping[streamName];
 
 				if (!USE_DEFAULT_DELIVERY_STREAMS || deliveryStreamMapping[streamName] == deliveryStreamMapping['DEFAULT']) {
-					finish(event, ERROR, "Delivery Stream " + deliveryStreamMapping[streamName] + " does not exist in region " + region);
+					finish(event, ERROR, "Could not find suitable delivery stream for " + streamName + " and the " +
+					    "default delivery stream (" + deliveryStreamMapping['DEFAULT'] + ") either doesn't exist or is disabled.");
 				} else {
 					deliveryStreamMapping[streamName] = deliveryStreamMapping['DEFAULT'];
 					exports.verifyDeliveryStreamMapping(streamName, event, callback);

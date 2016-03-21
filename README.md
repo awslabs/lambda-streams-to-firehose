@@ -12,7 +12,7 @@ In order to effectively use this function, you should already have configured an
 # Configuration
 
 This Lambda functions can map stream sources to Kinesis Firehose Delivery Streams in a few different ways (listed in order of preference):
-* Manually specified configuration (see [index.js:63](index.js#L63))
+* Manually specified configuration (see [index.js:63](index.js#L59))
 * A DynamoDB stream naming convention to determine which Delivery Stream to forward to
 * An Kinesis Stream Tagging convention
 * (Optionally) A default delivery stream.
