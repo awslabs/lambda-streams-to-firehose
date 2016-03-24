@@ -51,13 +51,11 @@ var USE_DEFAULT_DELIVERY_STREAMS = true;
 /*
  * Delivery stream mappings can be specified here to overwrite values provided
  * by Kinesis Stream tags or DynamoDB stream name. (Helpful for debugging)
- * Format:
- *   DDBStreamName: deliveryStreamName
- * Or:
- *   FORWARD_TO_FIREHOSE_STREAM tag value: deliveryStreamName
+ * Format: DDBStreamName: deliveryStreamName Or: FORWARD_TO_FIREHOSE_STREAM tag
+ * value: deliveryStreamName
  */
 var deliveryStreamMapping = {
-	'DEFAULT': 'LambdaStreamsDefaultDeliveryStream'
+	'DEFAULT' : 'LambdaStreamsDefaultDeliveryStream'
 };
 
 var start;
@@ -72,7 +70,7 @@ function init() {
 		if (debug) {
 			console.log("AWS Streams to Firehose Forwarder v" + pjson.version + " in " + setRegion);
 		}
-		
+
 		aws.config.update({
 			region : setRegion
 		});
@@ -162,7 +160,7 @@ exports.getBatchRanges = function(records) {
 	for (var i = 0; i < records.length; i++) {
 		// need to calculate the total record size for the call to Firehose on
 		// the basis of of non-base64 encoded values
-		recordSize = Buffer.byteLength(records[i].Data.toString('ascii'),'ascii');
+		recordSize = Buffer.byteLength(records[i].Data.toString('ascii'), 'ascii');
 
 		// batch always has 1 entry, so add it first
 		batchCurrentBytes += recordSize;
@@ -428,9 +426,10 @@ exports.handler = function(event, context) {
 					// name item
 					data.Tags.map(function(item) {
 						if (item.Key === FORWARD_TO_FIREHOSE_STREAM) {
-							/* Disable fallback to a default delivery stream as
-							 * a FORWARD_TO_FIREHOSE_STREAM has been specifically
-							 * set.
+							/*
+							 * Disable fallback to a default delivery stream as
+							 * a FORWARD_TO_FIREHOSE_STREAM has been
+							 * specifically set.
 							 */
 							USE_DEFAULT_DELIVERY_STREAMS = false;
 							deliveryStreamMapping[streamName] = item.Value;
@@ -449,18 +448,18 @@ exports.handler = function(event, context) {
 		}
 		if (!deliveryStreamMapping[streamName]) {
 			if (USE_DEFAULT_DELIVERY_STREAMS) {
-				/* No delivery stream has been specified, probably as it's not 
-				 * configured in stream tags. Using default delivery stream.
-				 * To prevent accidental forwarding of streams to a firehose set
+				/*
+				 * No delivery stream has been specified, probably as it's not
+				 * configured in stream tags. Using default delivery stream. To
+				 * prevent accidental forwarding of streams to a firehose set
 				 * USE_DEFAULT_DELIVERY_STREAMS = false.
 				 */
 				deliveryStreamMapping[streamName] = deliveryStreamMapping['DEFAULT'];
 			} else {
 				/*
 				 * Fail as no delivery stream mapping has been specified and we
-				 * have not configured to use a default.
-				 * Kinesis Streams should be tagged with
-				 * ForwardToFirehoseStream = <DeliveryStreamName>
+				 * have not configured to use a default. Kinesis Streams should
+				 * be tagged with ForwardToFirehoseStream = <DeliveryStreamName>
 				 */
 				finish(event, ERROR, "Warning: Kinesis Stream " + streamName + " not tagged for Firehose delivery with Tag name " + FORWARD_TO_FIREHOSE_STREAM);
 				return;
@@ -476,8 +475,8 @@ exports.handler = function(event, context) {
 				delete deliveryStreamMapping[streamName];
 
 				if (!USE_DEFAULT_DELIVERY_STREAMS || deliveryStreamMapping[streamName] == deliveryStreamMapping['DEFAULT']) {
-					finish(event, ERROR, "Could not find suitable delivery stream for " + streamName + " and the " +
-					    "default delivery stream (" + deliveryStreamMapping['DEFAULT'] + ") either doesn't exist or is disabled.");
+					finish(event, ERROR, "Could not find suitable delivery stream for " + streamName + " and the " + "default delivery stream (" + deliveryStreamMapping['DEFAULT']
+							+ ") either doesn't exist or is disabled.");
 				} else {
 					deliveryStreamMapping[streamName] = deliveryStreamMapping['DEFAULT'];
 					exports.verifyDeliveryStreamMapping(streamName, event, callback);
@@ -505,18 +504,19 @@ exports.handler = function(event, context) {
 		noProcessReason = "Event contains no Data";
 		// not fatal - just got an empty event
 		noProcessStatus = OK;
-	}
-
-	var serviceName;
-	if (event.Records[0].eventSource === KINESIS_SERVICE_NAME || event.Records[0].eventSource === DDB_SERVICE_NAME) {
-		serviceName = event.Records[0].eventSource;
 	} else {
-		noProcessReason = "Invalid Event Source " + event.Records[0].eventSource;
-	}
+		// there are records in this event
+		var serviceName;
+		if (event.Records[0].eventSource === KINESIS_SERVICE_NAME || event.Records[0].eventSource === DDB_SERVICE_NAME) {
+			serviceName = event.Records[0].eventSource;
+		} else {
+			noProcessReason = "Invalid Event Source " + event.Records[0].eventSource;
+		}
 
-	// currently hard coded around the 1.0 kinesis event schema
-	if (event.Records[0].kinesis && event.Records[0].kinesis.kinesisSchemaVersion !== "1.0") {
-		noProcessReason = "Unsupported Kinesis Event Schema Version " + event.Records[0].kinesis.kinesisSchemaVersion;
+		// currently hard coded around the 1.0 kinesis event schema
+		if (event.Records[0].kinesis && event.Records[0].kinesis.kinesisSchemaVersion !== "1.0") {
+			noProcessReason = "Unsupported Kinesis Event Schema Version " + event.Records[0].kinesis.kinesisSchemaVersion;
+		}
 	}
 
 	if (noProcessReason) {
