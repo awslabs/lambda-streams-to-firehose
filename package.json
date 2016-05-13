@@ -1,7 +1,7 @@
 {
     "name": "lambda-stream-to-firehose",
     "description": "An AWS Lambda function that forwards data from a Kinesis or DynamoDB Update Stream to a Kinesis Firehose Delivery Stream",
-    "version": "1.3.1",
+    "version": "1.3.2",
     "dependencies": {
     	"async":"1.5.2",
     	"aws-kpl-deagg":"2.1.1"
