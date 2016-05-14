@@ -407,18 +407,18 @@ exports.handler = function(event, context) {
 		if (deliveryStreamMapping[streamName]) {
 			// A delivery stream has already been specified in configuration
 			// This could be indicative of debug usage.
-			USE_DEFAULT_DELIVERY_STREAMS = false;
-			exports.verifyDeliveryStreamMapping(streamName, event, callback);
+			exports.verifyDeliveryStreamMapping(streamName, false, event, callback);
 		} else if (serviceName === DDB_SERVICE_NAME) {
 			// dynamodb streams need the firehose delivery stream to match
 			// the table name
 			deliveryStreamMapping[streamName] = streamName;
-			exports.verifyDeliveryStreamMapping(streamName, event, callback);
+			exports.verifyDeliveryStreamMapping(streamName, USE_DEFAULT_DELIVERY_STREAMS, event, callback);
 		} else {
 			// get the delivery stream name from Kinesis tag
 			exports.kinesis.listTagsForStream({
 				StreamName : streamName
 			}, function(err, data) {
+				shouldFailbackToDefaultDeliveryStream = USE_DEFAULT_DELIVERY_STREAMS;
 				if (err) {
 					finish(event, ERROR, err);
 				} else {
@@ -431,23 +431,23 @@ exports.handler = function(event, context) {
 							 * a FORWARD_TO_FIREHOSE_STREAM has been
 							 * specifically set.
 							 */
-							USE_DEFAULT_DELIVERY_STREAMS = false;
+							shouldFailbackToDefaultDeliveryStream = false;
 							deliveryStreamMapping[streamName] = item.Value;
 						}
 					});
 
-					exports.verifyDeliveryStreamMapping(streamName, event, callback);
+					exports.verifyDeliveryStreamMapping(streamName, shouldFailbackToDefaultDeliveryStream, event, callback);
 				}
 			});
 		}
 	};
 
-	exports.verifyDeliveryStreamMapping = function(streamName, event, callback) {
+	exports.verifyDeliveryStreamMapping = function(streamName, shouldFailbackToDefaultDeliveryStream, event, callback) {
 		if (debug) {
 			console.log('Verifying delivery stream');
 		}
 		if (!deliveryStreamMapping[streamName]) {
-			if (USE_DEFAULT_DELIVERY_STREAMS) {
+			if (shouldFailbackToDefaultDeliveryStream) {
 				/*
 				 * No delivery stream has been specified, probably as it's not
 				 * configured in stream tags. Using default delivery stream. To
@@ -471,15 +471,12 @@ exports.handler = function(event, context) {
 		};
 		exports.firehose.describeDeliveryStream(params, function(err, data) {
 			if (err) {
-				// do not continue with the cached mapping
-				delete deliveryStreamMapping[streamName];
-
-				if (!USE_DEFAULT_DELIVERY_STREAMS || deliveryStreamMapping[streamName] == deliveryStreamMapping['DEFAULT']) {
+				if (shouldFailbackToDefaultDeliveryStream) {
+					deliveryStreamMapping[streamName] = deliveryStreamMapping['DEFAULT'];
+					exports.verifyDeliveryStreamMapping(streamName, false, event, callback);
+				} else {
 					finish(event, ERROR, "Could not find suitable delivery stream for " + streamName + " and the " + "default delivery stream (" + deliveryStreamMapping['DEFAULT']
 							+ ") either doesn't exist or is disabled.");
-				} else {
-					deliveryStreamMapping[streamName] = deliveryStreamMapping['DEFAULT'];
-					exports.verifyDeliveryStreamMapping(streamName, event, callback);
 				}
 			} else {
 				// call the specified callback - should have
@@ -527,22 +524,13 @@ exports.handler = function(event, context) {
 
 		// parse the stream name out of the event
 		var streamName = exports.getStreamName(event.Records[0].eventSourceARN);
-
-		if (!deliveryStreamMapping[streamName]) {
+		if (deliveryStreamMapping.length === 0 || !deliveryStreamMapping[streamName]) {
 			// no delivery stream cached so far, so add this stream's tag value
 			// to the delivery map, and continue with processEvent
 			exports.buildDeliveryMap(streamName, serviceName, event, exports.processEvent.bind(undefined, event, serviceName, streamName));
 		} else {
-
-			if (deliveryStreamMapping.length === 0 || !deliveryStreamMapping[streamName]) {
-				// no delivery stream cached so far, so add this stream's tag
-				// value
-				// to the delivery map, and continue with processEvent
-				exports.buildDeliveryMap(streamName, serviceName, event, exports.processEvent.bind(undefined, event, serviceName, streamName));
-			} else {
-				// delivery stream is cached
-				exports.processEvent(event, serviceName, streamName);
-			}
+			// delivery stream is cached
+			exports.processEvent(event, serviceName, streamName);
 		}
 	}
 };
