@@ -39,6 +39,8 @@ var FIREHOSE_MAX_BATCH_COUNT = 500;
 // firehose max PutRecordBatch size 4MB
 var FIREHOSE_MAX_BATCH_BYTES = 4 * 1024 * 1024;
 
+var targetEncoding = "utf8";
+
 // should KPL checksums be calculated?
 var computeChecksums = true;
 
@@ -114,8 +116,8 @@ function init() {
  * filtering) then nothing will be sent to Firehose
  */
 exports.addNewlineTransformer = function(data, callback) {
-	// emitting a new buffer as ascii text with newline
-	callback(null, new Buffer(JSON.stringify(data) + "\n"));
+	// emitting a new buffer as text with newline
+	callback(null, new Buffer(JSON.stringify(data) + "\n", targetEncoding));
 };
 
 /**
@@ -160,7 +162,7 @@ exports.getBatchRanges = function(records) {
 	for (var i = 0; i < records.length; i++) {
 		// need to calculate the total record size for the call to Firehose on
 		// the basis of of non-base64 encoded values
-		recordSize = Buffer.byteLength(records[i].Data.toString('ascii'), 'ascii');
+		recordSize = Buffer.byteLength(records[i].Data.toString(targetEncoding), targetEncoding);
 
 		// batch always has 1 entry, so add it first
 		batchCurrentBytes += recordSize;
@@ -356,7 +358,7 @@ exports.handler = function(event, context) {
 
 				// transform the user records
 				async.map(userRecords, function(userRecord, userRecordCallback) {
-					var dataItem = serviceName === KINESIS_SERVICE_NAME ? new Buffer(userRecord.data, 'base64').toString('ascii') : userRecord;
+					var dataItem = serviceName === KINESIS_SERVICE_NAME ? new Buffer(userRecord.data, 'base64').toString(targetEncoding) : userRecord;
 
 					// only transform the data portion of a kinesis record, or
 					// the entire dynamo record
