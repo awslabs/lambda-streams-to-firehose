@@ -109,7 +109,7 @@ To use this function, simply deploy the [LambdaStreamToFirehose-1.3.3.zip](https
 
 You may choose to restrict the IAM role to be specific to a subset of Kinesis or DynamoDB Update Streams and Firehose endpoints.
 
-Finally, create an Event Source (http://docs.aws.amazon.com/lambda/latest/dg/intro-core-components.html) for this function from the Stream to be forwarded to Firehose.
+Finally, create an Event Source (http://docs.aws.amazon.com/lambda/latest/dg/lambda-introduction.html) for this function from the Stream to be forwarded to Firehose.
 
 # Optional Data Transformation
 
