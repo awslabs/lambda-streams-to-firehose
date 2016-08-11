@@ -117,7 +117,7 @@ function init() {
  */
 exports.addNewlineTransformer = function(data, callback) {
 	// emitting a new buffer as text with newline
-	callback(null, new Buffer(JSON.stringify(data) + "\n", targetEncoding));
+	callback(null, new Buffer(data + "\n", targetEncoding));
 };
 
 /**
