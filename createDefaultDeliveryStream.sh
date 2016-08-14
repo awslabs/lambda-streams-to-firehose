@@ -16,7 +16,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-region=eu-west-1
 
 s3BucketNamePrefix="LambdaStreamsDefaultDeliveryBucket"
 iamRoleName="LambdaStreamsDefaultDeliveryRole"
@@ -28,6 +27,12 @@ which aws > /dev/null 2>&1
 if [ $? != 0 ]; then
 	echo "This utility requires the AWS Cli, which can be installed using instructions found at http://docs.aws.amazon.com/cli/latest/userguide/installing.html"
 	exit -2
+fi
+
+region=$AWS_REGION
+if [ -z "$region" ]; then
+  echo "Please set environment variable AWS_REGION to desired region."
+  exit -3
 fi
 
 randomChars=$(openssl rand -base64 8 | tr -dc 'a-cA-Z0-9')
