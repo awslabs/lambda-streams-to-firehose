@@ -29,11 +29,11 @@ if [ $? != 0 ]; then
 	exit -2
 fi
 
-region=$AWS_REGION
-if [ -z "$region" ]; then
-  echo "Please set environment variable AWS_REGION to desired region."
-  exit -3
+if [ $# != 1 ]; then
+  echo "Please provide the Region."
+  exit -1
 fi
+region=$1
 
 randomChars=$(openssl rand -base64 8 | tr -dc 'a-cA-Z0-9')
 suggestedBucketName="$s3BucketNamePrefix-$randomChars"
