@@ -134,6 +134,13 @@ exports.regexToDelimiter = function(regex, delimiter, data, callback) {
 		callback("Configured Regular Expression does not match any tokens", null);
 	}
 };
+
+/**
+ * Example transformer that does nothing
+ */
+exports.identityTransformer = function(data, callback) {
+  callback(null, new Buffer(data, targetEncoding));
+};
 //
 // example regex transformer
 // var transformer = exports.regexToDelimiter.bind(undefined, /(myregex) (.*)/,
@@ -143,7 +150,7 @@ exports.regexToDelimiter = function(regex, delimiter, data, callback) {
  * create the transformer instance - change this to be regexToDelimter, or your
  * own new function
  */
-var transformer = exports.addNewlineTransformer.bind(undefined);
+var transformer = exports.identityTransformer.bind(undefined);
 
 /**
  * Convenience function which generates the batch set with low and high offsets
