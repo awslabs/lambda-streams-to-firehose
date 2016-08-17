@@ -29,11 +29,13 @@ if [ $? != 0 ]; then
 	exit -2
 fi
 
+region=us-east-1
+
 if [ $# != 1 ]; then
-  echo "Please provide the Region."
-  exit -1
+  echo "Proceeding with default region us-east-1"
+else
+  region=$1
 fi
-region=$1
 
 randomChars=$(openssl rand -base64 8 | tr -dc 'a-cA-Z0-9')
 suggestedBucketName="$s3BucketNamePrefix-$randomChars"
