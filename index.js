@@ -120,6 +120,18 @@ exports.addNewlineTransformer = function(data, callback) {
 	callback(null, new Buffer(data + "\n", targetEncoding));
 };
 
+/** Convert JSON data to its String representation */
+exports.jsonToStringTransformer = function(data, callback) {
+	// emitting a new buffer as text with newline
+	callback(null, new Buffer(JSON.stringify(data) + "\n", targetEncoding));
+};
+
+/** literally nothing at all transformer - just wrap the object in a buffer */
+exports.doNothingTransformer = function(data, callback) {
+	// emitting a new buffer as text with newline
+	callback(null, new Buffer(data));
+};
+
 /**
  * Example transformer that converts a regular expression to delimited text
  */
@@ -143,7 +155,7 @@ exports.regexToDelimiter = function(regex, delimiter, data, callback) {
  * create the transformer instance - change this to be regexToDelimter, or your
  * own new function
  */
-var transformer = exports.addNewlineTransformer.bind(undefined);
+var transformer = exports.jsonToStringTransformer.bind(undefined);
 
 /**
  * Convenience function which generates the batch set with low and high offsets
