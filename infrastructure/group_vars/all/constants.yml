@@ -1,0 +1,20 @@
+---
+# How long or short this stack will be alive in AWS.
+# Stack-deployed applications tend to be short-lived.
+# Long-lived resources are Kinesis, databases, etc.
+LIFETIME_SHORT: 'short'
+LIFETIME_LONG: 'long'
+
+# The path to where Cloudformation JSON templates are
+# stored, relative to where the playbook is stored.
+TEMPLATE_DIR: "{{ playbook_dir }}/files/stack-templates"
+
+# The path to where Cloudformation policies are
+# stored, relative to where the playbook is stored.
+POLICY_DIR: "{{ playbook_dir }}/files/stack-policies"
+
+# How templates and policies are looked up, which just
+# uses the project/subproject name.
+TEMPLATE_FILE: "{{ TEMPLATE_DIR }}/{{ project_name }}.json"
+POLICY_FILE: "{{ POLICY_DIR }}/{{ project_name }}.json"
+

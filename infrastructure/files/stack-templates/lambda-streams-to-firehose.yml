@@ -1,0 +1,159 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: lambda-streams-to-firehose stack, inside VPC
+Parameters:
+  Environment:
+    Type: String
+    Description: The label given to the environment
+  ReleaseType:
+    Type: String
+    Description: The type of release to pull (either snapshot or release).
+  AppVersion:
+    Type: String
+    Description: The version of the Lambda code to deploy
+  ProjectName:
+    Type: String
+    Description: The name of the main project
+Resources:
+  StreamLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName:
+        Fn::Join:
+        - '-'
+        - - Ref: ProjectName
+          - Ref: Environment
+          - StreamToFirehose
+      Code:
+        S3Bucket: unbounce-maven-repo
+        S3Key:
+          Fn::Join:
+          - /
+          - - Ref: ReleaseType
+            - com/unbounce
+            - Ref: ProjectName
+            - Ref: AppVersion
+            - .zip
+      Description: Lambda used to stream data from Kinesis Stream to Kinesis Firehose
+      Handler: index.handler
+      Role:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Action:
+            - sts:AssumeRole
+            Effect: Allow
+            Sid: ''
+            Principal:
+              Service:
+              - lambda.amazonaws.com
+        Policies:
+        - PolicyName:
+            Fn::Join:
+            - ''
+            - - Ref: ProjectName
+              - Ref: Environment
+              - Role
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+            - Sid: AllowLoggingOperations
+              Effect: Allow
+              Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              Resource:
+                Fn::Join:
+                - ''
+                - - arn:aws:logs:*:*:/aws/lambda/
+                  - Ref: AWS::StackName
+                  - '*'
+      Runtime: nodejs
+      Timeout: 300
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName:
+        Fn::Join:
+        - '-'
+        - - Ref: ProjectName
+          - Ref: Environment
+          - AlarmTopic
+      Subscription:
+      - Endpoint: https://api.opsgenie.com/v1/json/cloudwatch?apiKey=8353c0a8-1f13-46e3-8046-6e52056438fd
+        Protocol: https
+      TopicName:
+        Fn::Join:
+        - '-'
+        - - Ref: ProjectName
+          - Ref: Environment
+          - AlarmTopic
+  LambdaErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Alarm if errors from the Stream Lambda are >= 2 per minute.
+      AlarmActions:
+      - Ref: AlarmTopic
+      OKActions:
+      - Ref: AlarmTopic
+      InsufficientDataActions:
+      - Ref: AlarmTopic
+      AlarmName:
+        Fn::Join:
+        - '-'
+        - - Ref: ProjectName
+          - Ref: Environment
+          - LambdaStreamsToFirehoseErrorAlarm
+      ComparisonOperator: GreaterThanOrEqualThreshold
+      Threshold: '2'
+      EvaluationPeriods: '1'
+      Statistic: Sum
+      Period: '60'
+      Dimensions:
+      - Name: FunctionName
+        Value:
+          Ref: StreamLambda
+      MetricName: Errors
+      Namespace: AWS/Lambda
+  LambdaInvocationAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Alarm if invocations of the Stream Lambda are >= 10/min for
+        2 minutes.
+      AlarmActions:
+      - Ref: AlarmTopic
+      OKActions:
+      - Ref: AlarmTopic
+      InsufficientDataActions:
+      - Ref: AlarmTopic
+      AlarmName:
+        Fn::Join:
+        - '-'
+        - - Ref: ProjectName
+          - Ref: Environment
+          - LambdaStreamsToFirehoseInvocationAlarm
+      ComparisonOperator: GreaterThanOrEqualThreshold
+      Threshold: '10'
+      EvaluationPeriods: '2'
+      Statistic: Sum
+      Period: '60'
+      Dimensions:
+      - Name: FunctionName
+        Value:
+          Ref: StreamLambda
+      MetricName: Invocations
+      Namespace: AWS/Lambda
+Outputs:
+  LambdaArn:
+    Description: ARN of the Lambda
+    Value:
+      Fn::GetAtt:
+      - StreamLambda
+      - Arn
+  FirehoseArn:
+    Description: ARN of the Firehose
+    Value:
+      Fn::GetAtt:
+      - LambdaFirehose
+      - Arn
