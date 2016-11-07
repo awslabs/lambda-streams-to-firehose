@@ -173,6 +173,8 @@ this attribute map is then used to configure the router instance:
 var useRouter = router.routeByAttributeMapping.bind(undefined, attributeMap);
 ```
 
+Please note this feature is only supported for JSON data in event payloads.
+
 # Confirming Successful Execution
 
 When successfully configured, writes to your Stream will be automatically forwarded to the Firehose Delivery Stream, and you'll see data arriving in Amazon S3 and optionally Amazon Redshift. You can also view [CloudWatch Logs](http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/WhatIsCloudWatchLogs.html) for this Lambda function as it forwards stream data to Firehose
