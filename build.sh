@@ -26,7 +26,7 @@ npm install
 
 rm $filename 2>&1 >> /dev/null
 
-zip -r $filename index.js package.json node_modules/ README.md LICENSE && mv -f $filename dist/$filename
+zip -x \*node_modules/protobufjs/tests/\* -r $filename index.js router.js transformer.js constants.js lambda.json package.json node_modules/ README.md LICENSE NOTICE.txt && mv -f $filename dist/$filename
 
 if [ "$1" = "true" ]; then
   aws lambda update-function-code --function-name $functionName --zip-file fileb://dist/$filename --region $region

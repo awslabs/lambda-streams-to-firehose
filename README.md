@@ -128,7 +128,7 @@ eventName
 
 For more information on DynamoDB Update Streams, please read http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html.
 
-By default, the function will append a newline character to received data so that files delivered to S3 are nicely formatted, and easy to load into Amazon Redshift. However, the function also provides a framework to write your own transformers. If you would like to modify the data after it's read from the Stream, but before it's forwarded to Firehose, then you can implement and register a new Javascript function with the following interface:
+By default, the function will append a newline character to received data so that files delivered to S3 are nicely formatted, and easy to load into Amazon Redshift. However, the function also provides a framework to write your own transformers. If you would like to modify the data after it's read from the Stream, but before it's forwarded to Firehose, then you can implement and register a new Javascript function with the following interface (ideally in `transformer.js`:
 
 ```
 function(inputData, callback(err,outputData));
@@ -139,10 +139,11 @@ callback: function to be invoked once transformation is completed, with argument
 	outputData: Buffer instance (typically 'ascii' encoded) which will be forwarded to Firehose
 ```
 
-You then register this transformer function by assigning an instance of it to the exported ```transformer``` instance:
+You then register this transformer function by assigning an instance of it to the exported ```transformer``` instance in the header of `index.js`:
 
 ```
-var transformer = myTransformerFunction.bind(undefined, <internal setup args>);
+// var useTransformer = transform.addNewlineTransformer.bind(undefined);
+var useTransformer = myTransformerFunction.bind(undefined, <internal setup args>);
 ```
 
 You can also take advantage of a built in regex-to-csv transformer, which can be used by un-commenting and configuring the following entry in the function:
@@ -151,6 +152,26 @@ You can also take advantage of a built in regex-to-csv transformer, which can be
 ```
 
 Where ```/(myregex) (.*)/``` is the regular expression that uses character classes to capture data from the input stream to export to the CSV, and ```"|"``` is the delimiter.
+
+# Delivery Stream Routing
+As stated previously, data will be forwarded on the basis of a Kinesis tag named `ForwardToFirehoseStream`, and if this isn't found, then it will fall back to a default delivery stream. DynamoDB update streams are always routed to the delivery stream with the same name as the base table.
+
+In version 1.4.0, we added the ability to do dynamic routing. For example, you might want to route to different destinations on S3 or Redshift on the basis of the actual data being received. You can now use this by overriding the default routing, and providing a map of who records should be routed. You do this by changing the `router.defaultRouting` method to be `router.routeByAttributeMapping`. When done, you need to previde an 'attribute delivery map' which tells the router which fields to look at in your data, and how to route based on their values. You do this with a configuration object - for example to route by the value of an attribute `binaryValue` that can only be `true` or `false`:
+
+```
+var attributeMap = {
+    "binaryValue" : {
+	"true" : "TestRouting-route-A",
+	"false" : "TestRouting-route-B"
+    }
+};
+```
+
+this attribute map is then used to configure the router instance:
+
+```
+var useRouter = router.routeByAttributeMapping.bind(undefined, attributeMap);
+```
 
 # Confirming Successful Execution
 
