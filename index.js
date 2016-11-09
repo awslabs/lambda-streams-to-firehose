@@ -142,7 +142,7 @@ function createDynamoDataItem(record) {
     output.eventName = record.eventName;
 
     return output;
-};
+}
 exports.createDynamoDataItem = createDynamoDataItem;
 
 /** function to extract the kinesis stream name from a kinesis stream ARN */
@@ -154,7 +154,7 @@ function getStreamName(arn) {
 	console.log("Malformed Kinesis Stream ARN");
 	return;
     }
-};
+}
 exports.getStreamName = getStreamName;
 
 function onCompletion(context, event, err, status, message) {
@@ -175,7 +175,7 @@ function onCompletion(context, event, err, status, message) {
     } else {
 	context.done(null, message);
     }
-};
+}
 
 /** AWS Lambda event handler */
 function handler(event, context) {
@@ -239,7 +239,7 @@ function handler(event, context) {
 	    processor();
 	}
     }
-};
+}
 exports.handler = handler;
 
 /**
@@ -385,7 +385,7 @@ function getBatchRanges(records) {
     }
 
     return batches;
-};
+}
 exports.getBatchRanges = getBatchRanges;
 
 /**
@@ -462,7 +462,7 @@ function processEvent(event, serviceName, streamName, callback) {
 	    });
 	}
     });
-};
+}
 exports.processEvent = processEvent;
 
 /**
@@ -472,7 +472,7 @@ exports.processEvent = processEvent;
 function writeToFirehose(firehoseBatch, streamName, deliveryStreamName, callback) {
     // write the batch to firehose with putRecordBatch
     var putRecordBatchParams = {
-	DeliveryStreamName : deliveryStreamName,
+	DeliveryStreamName : deliveryStreamName.substring(0, 64),
 	Records : firehoseBatch
     };
 
@@ -494,7 +494,7 @@ function writeToFirehose(firehoseBatch, streamName, deliveryStreamName, callback
 	    callback();
 	}
     });
-};
+}
 exports.writeToFirehose = writeToFirehose;
 
 /**
@@ -553,5 +553,5 @@ function processFinalRecords(records, streamName, deliveryStreamName, callback) 
 	    });
 	}
     });
-};
+}
 exports.processFinalRecords = processFinalRecords;
