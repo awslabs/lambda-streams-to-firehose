@@ -37,7 +37,7 @@ var transform = require('./transformer');
  * create the transformer instance - change this to be regexToDelimter, or your
  * own new function
  */
-var useTransformer = transform.addNewlineTransformer.bind(undefined);
+var useTransformer = transform.jsonToStringTransformer.bind(undefined);
 
 /*
  * Configure destination router. By default all records route to the configured
