@@ -306,7 +306,7 @@ exports.handler = function(event, context) {
 		}
 		// write the batch to firehose with putRecordBatch
 		var putRecordBatchParams = {
-			DeliveryStreamName : deliveryStreamName,
+			DeliveryStreamName : deliveryStreamName.substring(0,64),
 			Records : firehoseBatch
 		};
 
