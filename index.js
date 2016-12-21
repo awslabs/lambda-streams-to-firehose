@@ -139,6 +139,7 @@ function createDynamoDataItem(record) {
     // add the sequence number and other metadata
     output.SequenceNumber = record.dynamodb.SequenceNumber;
     output.SizeBytes = record.dynamodb.SizeBytes;
+    output.ApproximateCreationDateTime = record.dynamodb.ApproximateCreationDateTime;
     output.eventName = record.eventName;
 
     return output;
