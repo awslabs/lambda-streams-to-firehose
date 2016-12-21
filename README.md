@@ -122,6 +122,7 @@ NewImage,
 OldImage,
 SequenceNumber,
 SizeBytes,
+ApproximateCreationDateTime,
 eventName
 }
 ```
