@@ -427,7 +427,7 @@ function processEvent(event, serviceName, streamName, callback) {
 	}
     }, function(err, extractedUserRecords) {
 	if (err) {
-	    callback(err, ERROR);
+	    callback(err);
 	} else {
 	    // extractedUserRecords will be array[array[Object]], so
 	    // flatten to array[Object]
@@ -452,11 +452,16 @@ function processEvent(event, serviceName, streamName, callback) {
 
 			processFinalRecords(records, streamName, destinationStream, asyncCallback);
 		    }, function(err, results) {
-			results.map(function(item) {
-			    console.log(JSON.stringify(item));
-			});
-
-			callback();
+			if (err) {
+				callback(err);
+			} else {
+				if (debug) {
+					results.map(function(item) {
+						console.log(JSON.stringify(item));
+					});
+				}
+				callback();
+			}
 		    });
 
 		});
