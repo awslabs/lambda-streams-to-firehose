@@ -196,6 +196,8 @@ This function uses the putRecordBatch interface to Firehose to send 500 messages
 
 Transformation creates another copy of input records, so you must plan accordingly when sizing the memory limit in AWS Lambda. Also consider that user defined transformers which significantly increase message size will need to be stored in memory before being dispatched to Firehose. If you need to limit the number of records for any reason, this can be set on the Event Source for your function.
 
+This function was written in and for node.js v0.10 and v0.12. Version 1.4.2 has been tested against Node.js 4.3, but the syntax is not ES6. We know this and appreciate that there are updated syntax options that what is available in the code. We are happy to accept pull requests that bring the codebase into the century of the fruitbat.
+
 ----
 
 AWS Streams to Firehose
