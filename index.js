@@ -324,7 +324,7 @@ function buildDeliveryMap(streamName, serviceName, context, event, callback) {
 	}, function(err, data) {
 	    shouldFailbackToDefaultDeliveryStream = USE_DEFAULT_DELIVERY_STREAMS;
 	    if (err) {
-		exports.onCompletion(context, event, err, ERR, "Unable to List Tags for Stream");
+		exports.onCompletion(context, event, err, ERROR, "Unable to List Tags for Stream");
 	    } else {
 		// grab the tag value if it's the foreward_to_firehose
 		// name item
