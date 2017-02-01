@@ -234,7 +234,7 @@ function handler(event, context) {
 	if (deliveryStreamMapping.length === 0 || !deliveryStreamMapping[streamName]) {
 	    // no delivery stream cached so far, so add this stream's tag value
 	    // to the delivery map, and continue with processEvent
-	    exports.buildDeliveryMap(streamName, serviceName, event, processor);
+	    exports.buildDeliveryMap(streamName, serviceName, context, event, processor);
 	} else {
 	    // delivery stream is cached so just invoke the processor
 	    processor();
@@ -304,7 +304,7 @@ exports.verifyDeliveryStreamMapping = verifyDeliveryStreamMapping;
  * Function which resolves the destination delivery stream from the specified
  * Kinesis Stream Name, using Tags attached to the Kinesis Stream
  */
-function buildDeliveryMap(streamName, serviceName, event, callback) {
+function buildDeliveryMap(streamName, serviceName, context, event, callback) {
     if (debug) {
 	console.log('Building delivery stream mapping');
     }
@@ -324,7 +324,7 @@ function buildDeliveryMap(streamName, serviceName, event, callback) {
 	}, function(err, data) {
 	    shouldFailbackToDefaultDeliveryStream = USE_DEFAULT_DELIVERY_STREAMS;
 	    if (err) {
-		finish(event, ERROR, err);
+		exports.onCompletion(context, event, err, ERR, "Unable to List Tags for Stream");
 	    } else {
 		// grab the tag value if it's the foreward_to_firehose
 		// name item
@@ -453,14 +453,14 @@ function processEvent(event, serviceName, streamName, callback) {
 			processFinalRecords(records, streamName, destinationStream, asyncCallback);
 		    }, function(err, results) {
 			if (err) {
-				callback(err);
+			    callback(err);
 			} else {
-				if (debug) {
-					results.map(function(item) {
-						console.log(JSON.stringify(item));
-					});
-				}
-				callback();
+			    if (debug) {
+				results.map(function(item) {
+				    console.log(JSON.stringify(item));
+				});
+			    }
+			    callback();
 			}
 		    });
 
