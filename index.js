@@ -254,7 +254,7 @@ exports.handler = handler;
  * @param callback
  * @returns
  */
-function verifyDeliveryStreamMapping(streamName, shouldFailbackToDefaultDeliveryStream, event, callback) {
+function verifyDeliveryStreamMapping(streamName, shouldFailbackToDefaultDeliveryStream, context, event, callback) {
     if (debug) {
 	console.log('Verifying delivery stream');
     }
@@ -273,8 +273,7 @@ function verifyDeliveryStreamMapping(streamName, shouldFailbackToDefaultDelivery
 	     * not configured to use a default. Kinesis Streams should be tagged
 	     * with ForwardToFirehoseStream = <DeliveryStreamName>
 	     */
-	    finish(event, ERROR, "Warning: Kinesis Stream " + streamName + " not tagged for Firehose delivery with Tag name " + FORWARD_TO_FIREHOSE_STREAM);
-	    return;
+	    exports.onCompletion(context, event, undefined, ERROR, "Warning: Kinesis Stream " + streamName + " not tagged for Firehose delivery with Tag name " + FORWARD_TO_FIREHOSE_STREAM);
 	}
     }
     // validate the delivery stream name provided
@@ -311,12 +310,12 @@ function buildDeliveryMap(streamName, serviceName, context, event, callback) {
     if (deliveryStreamMapping[streamName]) {
 	// A delivery stream has already been specified in configuration
 	// This could be indicative of debug usage.
-	exports.verifyDeliveryStreamMapping(streamName, false, event, callback);
+	exports.verifyDeliveryStreamMapping(streamName, false, context, event, callback);
     } else if (serviceName === DDB_SERVICE_NAME) {
 	// dynamodb streams need the firehose delivery stream to match
 	// the table name
 	deliveryStreamMapping[streamName] = streamName;
-	exports.verifyDeliveryStreamMapping(streamName, USE_DEFAULT_DELIVERY_STREAMS, event, callback);
+	exports.verifyDeliveryStreamMapping(streamName, USE_DEFAULT_DELIVERY_STREAMS, context, event, callback);
     } else {
 	// get the delivery stream name from Kinesis tag
 	exports.kinesis.listTagsForStream({
@@ -339,7 +338,7 @@ function buildDeliveryMap(streamName, serviceName, context, event, callback) {
 		    }
 		});
 
-		exports.verifyDeliveryStreamMapping(streamName, shouldFailbackToDefaultDeliveryStream, event, callback);
+		exports.verifyDeliveryStreamMapping(streamName, shouldFailbackToDefaultDeliveryStream, context, event, callback);
 	    }
 	});
     }
