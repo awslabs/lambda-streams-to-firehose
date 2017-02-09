@@ -177,6 +177,7 @@ function onCompletion(context, event, err, status, message) {
 	context.done(null, message);
     }
 }
+exports.onCompletion = onCompletion;
 
 /** AWS Lambda event handler */
 function handler(event, context) {
@@ -286,8 +287,8 @@ function verifyDeliveryStreamMapping(streamName, shouldFailbackToDefaultDelivery
 		deliveryStreamMapping[streamName] = deliveryStreamMapping['DEFAULT'];
 		exports.verifyDeliveryStreamMapping(streamName, false, event, callback);
 	    } else {
-		finish(event, ERROR, "Could not find suitable delivery stream for " + streamName + " and the " + "default delivery stream (" + deliveryStreamMapping['DEFAULT']
-			+ ") either doesn't exist or is disabled.");
+		exports.onCompletion(context, event, undefined, ERROR, "Could not find suitable delivery stream for " + streamName + " and the " + "default delivery stream ("
+			+ deliveryStreamMapping['DEFAULT'] + ") either doesn't exist or is disabled.");
 	    }
 	} else {
 	    // call the specified callback - should have
