@@ -15,7 +15,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
  */
-var debug = false;
+var debug = process.env.DEBUG;
 
 var pjson = require('./package.json');
 var setRegion = process.env['AWS_REGION'];
