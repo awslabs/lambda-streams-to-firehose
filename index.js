@@ -38,6 +38,10 @@ var transform = require('./transformer');
  * own new function
  */
 var useTransformer = transform.jsonToStringTransformer.bind(undefined);
+function setTransformer(transformer) {
+    useTransformer = transformer
+}
+exports.setTransformer = setTransformer
 
 /*
  * Configure destination router. By default all records route to the configured
@@ -50,6 +54,10 @@ var router = require('./router');
  * default router
  */
 var useRouter = router.defaultRouting.bind(undefined);
+function setRouter(router) {
+    useRouter = router
+}
+exports.setRouter = setRouter
 // example for using routing based on messages attributes
 // var attributeMap = {
 // "binaryValue" : {
