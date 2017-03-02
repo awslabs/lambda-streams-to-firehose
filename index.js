@@ -141,6 +141,8 @@ function createDynamoDataItem(record) {
     output.SizeBytes = record.dynamodb.SizeBytes;
     output.ApproximateCreationDateTime = record.dynamodb.ApproximateCreationDateTime;
     output.eventName = record.eventName;
+    // adding userIdentity, used by DynamoDB TTL to indicate removal by TTL as opposed to user initiated remove 
+    output.userIdentity = record.userIdentity;
 
     return output;
 }
