@@ -21,7 +21,7 @@ exports.addNewlineTransformer = addNewlineTransformer;
 /** Convert JSON data to its String representation */
 function jsonToStringTransformer(data, callback) {
     // emitting a new buffer as text with newline
-    callback(null, new Buffer(JSON.stringify(data) + "\n", targetEncoding));
+    callback(null, new Buffer(data + "\n", targetEncoding));
 };
 exports.jsonToStringTransformer = jsonToStringTransformer;
 
