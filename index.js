@@ -38,6 +38,10 @@ var transform = require('./transformer');
  * own new function
  */
 var useTransformer = transform.jsonToStringTransformer.bind(undefined);
+function setTransformer(transformer) {
+    useTransformer = transformer
+}
+exports.setTransformer = setTransformer
 
 /*
  * Configure destination router. By default all records route to the configured
@@ -50,6 +54,10 @@ var router = require('./router');
  * default router
  */
 var useRouter = router.defaultRouting.bind(undefined);
+function setRouter(router) {
+    useRouter = router
+}
+exports.setRouter = setRouter
 // example for using routing based on messages attributes
 // var attributeMap = {
 // "binaryValue" : {
@@ -141,6 +149,8 @@ function createDynamoDataItem(record) {
     output.SizeBytes = record.dynamodb.SizeBytes;
     output.ApproximateCreationDateTime = record.dynamodb.ApproximateCreationDateTime;
     output.eventName = record.eventName;
+    // adding userIdentity, used by DynamoDB TTL to indicate removal by TTL as opposed to user initiated remove 
+    output.userIdentity = record.userIdentity;
 
     return output;
 }
@@ -475,7 +485,11 @@ exports.processEvent = processEvent;
  * function which forwards a batch of kinesis records to a firehose delivery
  * stream
  */
-function writeToFirehose(firehoseBatch, streamName, deliveryStreamName, callback) {
+function writeToFirehose(firehoseBatch, streamName, deliveryStreamName, callback, retries) {
+    if (retries === undefined) {
+	retries = 0;
+    }
+
     // write the batch to firehose with putRecordBatch
     var putRecordBatchParams = {
 	DeliveryStreamName : deliveryStreamName.substring(0, 64),
@@ -483,7 +497,7 @@ function writeToFirehose(firehoseBatch, streamName, deliveryStreamName, callback
     };
 
     if (debug) {
-	console.log('Writing to firehose delivery stream ');
+	console.log('Writing to firehose delivery stream (' + retries + ')');
 	console.log(JSON.stringify(putRecordBatchParams));
     }
 
@@ -493,11 +507,35 @@ function writeToFirehose(firehoseBatch, streamName, deliveryStreamName, callback
 	    console.log(JSON.stringify(err));
 	    callback(err);
 	} else {
-	    if (debug) {
-		var elapsedMs = new Date().getTime() - startTime;
-		console.log("Successfully wrote " + firehoseBatch.length + " records to Firehose " + deliveryStreamName + " in " + elapsedMs + " ms");
+	    if (data.FailedPutCount !== 0) {
+	        console.log("Failed to write " + data.FailedPutCount + "/" + firehoseBatch.length + " records. Retrying to write...");
+		if (retries < MAX_RETRY_ON_FAILED_PUT) {
+		    // extract the failed records
+		    var failedBatch = [];
+		    data.RequestResponses.map(function(item, index) {
+			if (item.hasOwnProperty('ErrorCode')) {
+			    failedBatch.push(firehoseBatch[index]);
+			}
+		    });
+
+		    setTimeout(exports.writeToFirehose.bind(undefined, failedBatch, streamName, deliveryStreamName, function(err) {
+			if (err) {
+			    callback(err);
+			} else {
+			    callback();
+			}
+		    }, retries + 1), RETRY_INTERVAL_MS);
+		} else {
+		    console.log('Maximum retries reached, giving up');
+		    callback(data);
+		}
+	    } else {
+		if (debug) {
+		    var elapsedMs = new Date().getTime() - startTime;
+		    console.log("Successfully wrote " + firehoseBatch.length + " records to Firehose " + deliveryStreamName + " in " + elapsedMs + " ms");
+		}
+		callback();
 	    }
-	    callback();
 	}
     });
 }
