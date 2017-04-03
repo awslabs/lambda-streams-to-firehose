@@ -182,11 +182,7 @@ When successfully configured, writes to your Stream will be automatically forwar
 
 # Debugging & Creating New Builds
 
-If you write a new transformer, you may wish to see debug logging in the CloudWatch Logs Stream. If so, then simply change 'false' to 'true' on the first line of the function:
-
-```
-var debug = true;
-```
+If you write a new transformer, you may wish to see debug logging in the CloudWatch Logs Stream. If so, then simply change the [env variable](http://docs.aws.amazon.com/lambda/latest/dg/env_variables.html) `DEBUG` to `true`.
 
 You will then need to rebuild and redeploy the function. To do this, first install the required dependencies with ```npm install```, and then you can deploy a new version of the function with the ```build.sh``` script included in the repository. This will automatically redeploy the function using name 'LambdaStreamToFirehose'. If you have deployed your function as a different name, then please update the name in ```build.sh```
 
