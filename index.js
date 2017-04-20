@@ -295,7 +295,7 @@ function verifyDeliveryStreamMapping(streamName, shouldFailbackToDefaultDelivery
 	if (err) {
 	    if (shouldFailbackToDefaultDeliveryStream) {
 		deliveryStreamMapping[streamName] = deliveryStreamMapping['DEFAULT'];
-		exports.verifyDeliveryStreamMapping(streamName, false, event, callback);
+		exports.verifyDeliveryStreamMapping(streamName, false, context, event, callback);
 	    } else {
 		exports.onCompletion(context, event, undefined, ERROR, "Could not find suitable delivery stream for " + streamName + " and the " + "default delivery stream ("
 			+ deliveryStreamMapping['DEFAULT'] + ") either doesn't exist or is disabled.");
