@@ -21,9 +21,16 @@ exports.addNewlineTransformer = addNewlineTransformer;
 /** Convert JSON data to its String representation */
 function jsonToStringTransformer(data, callback) {
     // emitting a new buffer as text with newline
-    callback(null, new Buffer(data + "\n", targetEncoding));
+    callback(null, new Buffer(JSON.stringify(data) + "\n", targetEncoding));
 };
 exports.jsonToStringTransformer = jsonToStringTransformer;
+
+/** Convert JSON data to its String representation */
+function addNewlineOnlyTransformer(data, callback) {
+    // emitting a new buffer as text with newline
+    callback(null, new Buffer(data + "\n", targetEncoding));
+};
+exports.addNewlineOnlyTransformer = addNewlineOnlyTransformer;
 
 /** literally nothing at all transformer - just wrap the object in a buffer */
 function doNothingTransformer(data, callback) {
