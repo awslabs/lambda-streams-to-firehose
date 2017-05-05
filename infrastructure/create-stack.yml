@@ -1,0 +1,43 @@
+---
+- hosts: all
+  gather_facts: no
+  connection: local
+  vars:
+    project_name: 'lambda-streams-to-firehose'
+
+    stack_name: "{{ project_name }}-{{ stack_env }}"
+  tasks:
+    - include_vars: "{{ stack_env }}.yml"
+
+    - name: ensure stack exists
+      cloudformation:
+        stack_name: "{{ stack_name }}"
+        region: "{{ aws_region }}"
+        state: 'present'
+        stack_policy: "{{ POLICY_FILE }}"
+        template: "{{ TEMPLATE_FILE }}"
+        template_parameters:
+          Environment: "{{ stack_env }}"
+          ReleaseType: "{{ release_type }}"
+          AppVersion:  "{{ app_version }}"
+          ProjectName: "{{ project_name }}"
+        tags:
+          project: "{{ project_name }}"
+          environment: "{{ stack_env }}"
+          lifetime: "{{ LIFETIME_LONG }}"
+      register: stack_result
+    - name: ensure Slack is notified of any change
+      slack:
+        token: "{{ slack_token }}"
+        channel: "{{ slack_notification_channel }}"
+        msg: "Stack created/updated for *{{ stack_name }}* in *{{ stack_env }}*"
+      when: slack_token is defined and stack_result|changed
+    - name: ensure DataDog is notified of any change
+      datadog_event:
+        title: "{{ stack_name }} has been created/updated"
+        text: "{{ stack_name }} has been created and or updated.\nRegion - {{ aws_region }}.\nEnvironment - {{ stack_env }}"
+        priority: 'low'
+        api_key: "{{ datadog_api_key }}"
+        tags: "#team:platform,#project:{{ project_name }},#environment:{{ stack_env }},#region: {{ aws_region }}"
+      when: datadog_api_key is defined and stack_result|changed
+

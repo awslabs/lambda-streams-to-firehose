@@ -1,0 +1,6 @@
+# Required to run Ansible playbooks
+ansible==2.1.1.0
+
+# Required to interact with AWS Ansible modules
+boto==2.42.0
+

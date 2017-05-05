@@ -1,0 +1,6 @@
+---
+release_type: 'release'
+app_version: '1.2.3'
+
+slack_notification_channel: '#production-bots'
+

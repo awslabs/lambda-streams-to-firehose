@@ -1,1 +1,4 @@
 /node_modules/
+.project
+.settings
+/target/
