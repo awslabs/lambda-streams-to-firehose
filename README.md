@@ -129,7 +129,16 @@ eventName
 
 For more information on DynamoDB Update Streams, please read http://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Streams.html.
 
-By default, the function will append a newline character to received data so that files delivered to S3 are nicely formatted, and easy to load into Amazon Redshift. However, the function also provides a framework to write your own transformers. If you would like to modify the data after it's read from the Stream, but before it's forwarded to Firehose, then you can implement and register a new Javascript function with the following interface (ideally in `transformer.js`:
+By default, the function assumes that data is JSON, and will 'stringify' the data and append a newline character, so that files delivered to S3 are nicely formatted, and easy to load into Amazon Redshift. If your data is not JSON type, then you can add an environment variable to the deployed Lambda function 'StreamDatatype', which can be one of the following values:
+
+* `CSV`
+* `CSV-WITH-NEWLINES`
+* `BINARY`
+* `JSON`
+
+If this setting is found, then the module will transform the data in the most appropriate way. CSV data will not be modified, but will have a new line character added before pushing to Kinesis Firehose. `CSV-WITH-NEWLINES` and `BINARY` are not modified in any way prior to forwarding.
+
+The function also provides a framework to write your own transformers. If you would like to modify the data after it's read from the Stream, but before it's forwarded to Firehose, then you can implement and register a new Javascript function with the following interface (ideally in `transformer.js`):
 
 ```
 function(inputData, callback(err,outputData));
