@@ -37,7 +37,7 @@ var transform = require('./transformer');
  * create the transformer instance - change this to be regexToDelimter, or your
  * own new function
  */
-var useTransformer = transform.jsonToStringTransformer.bind(undefined);
+var useTransformer;
 function setTransformer(transformer) {
     useTransformer = transformer
 }
@@ -88,7 +88,7 @@ var deliveryStreamMapping = {
 
 var start;
 
-function init() {
+function init(callback) {
     if (!online) {
 	if (!setRegion || setRegion === null || setRegion === "") {
 	    setRegion = "us-east-1";
@@ -99,36 +99,47 @@ function init() {
 	    console.log("AWS Streams to Firehose Forwarder v" + pjson.version + " in " + setRegion);
 	}
 
-	aws.config.update({
-	    region : setRegion
+	transform.setupTransformer(function(err, transformer) {
+	    if (err) {
+		callback(err);
+	    } else {
+		useTransformer = transformer;
+
+		aws.config.update({
+		    region : setRegion
+		});
+
+		// configure a new connection to firehose, if one has not been
+		// provided
+		if (!exports.firehose) {
+		    if (debug) {
+			console.log("Connecting to Amazon Kinesis Firehose in " + setRegion);
+		    }
+		    exports.firehose = new aws.Firehose({
+			apiVersion : '2015-08-04',
+			region : setRegion
+		    });
+		}
+
+		// configure a new connection to kinesis streams, if one has not
+		// been provided
+		if (!exports.kinesis) {
+		    if (debug) {
+			console.log("Connecting to Amazon Kinesis Streams in " + setRegion);
+		    }
+		    exports.kinesis = new aws.Kinesis({
+			apiVersion : '2013-12-02',
+			region : setRegion
+		    });
+		}
+
+		online = true;
+		callback(null);
+	    }
 	});
-
-	// configure a new connection to firehose, if one has not been provided
-	if (!exports.firehose) {
-	    if (debug) {
-		console.log("Connecting to Amazon Kinesis Firehose in " + setRegion);
-	    }
-	    exports.firehose = new aws.Firehose({
-		apiVersion : '2015-08-04',
-		region : setRegion
-	    });
-	}
-
-	// configure a new connection to kinesis streams, if one has not been
-	// provided
-	if (!exports.kinesis) {
-	    if (debug) {
-		console.log("Connecting to Amazon Kinesis Streams in " + setRegion);
-	    }
-	    exports.kinesis = new aws.Kinesis({
-		apiVersion : '2013-12-02',
-		region : setRegion
-	    });
-	}
-
-	online = true;
     }
 }
+exports.init = init;
 
 /**
  * Function to create a condensed version of a dynamodb change record. This is
@@ -149,7 +160,8 @@ function createDynamoDataItem(record) {
     output.SizeBytes = record.dynamodb.SizeBytes;
     output.ApproximateCreationDateTime = record.dynamodb.ApproximateCreationDateTime;
     output.eventName = record.eventName;
-    // adding userIdentity, used by DynamoDB TTL to indicate removal by TTL as opposed to user initiated remove 
+    // adding userIdentity, used by DynamoDB TTL to indicate removal by TTL as
+    // opposed to user initiated remove
     output.userIdentity = record.userIdentity;
 
     return output;
@@ -228,28 +240,34 @@ function handler(event, context) {
 	// terminate if there were any non process reasons
 	finish(noProcessStatus, ERROR, noProcessReason);
     } else {
-	init();
-
-	// parse the stream name out of the event
-	var streamName = exports.getStreamName(event.Records[0].eventSourceARN);
-
-	// create the processor to handle each record
-	var processor = exports.processEvent.bind(undefined, event, serviceName, streamName, function(err) {
+	init(function(err) {
 	    if (err) {
-		finish(err, ERROR, "Error Processing Records");
+		finish(err, ERROR);
 	    } else {
-		finish(undefined, OK);
+		// parse the stream name out of the event
+		var streamName = exports.getStreamName(event.Records[0].eventSourceARN);
+
+		// create the processor to handle each record
+		var processor = exports.processEvent.bind(undefined, event, serviceName, streamName, function(err) {
+		    if (err) {
+			finish(err, ERROR, "Error Processing Records");
+		    } else {
+			finish(undefined, OK);
+		    }
+		});
+
+		if (deliveryStreamMapping.length === 0 || !deliveryStreamMapping[streamName]) {
+		    // no delivery stream cached so far, so add this stream's
+		    // tag
+		    // value
+		    // to the delivery map, and continue with processEvent
+		    exports.buildDeliveryMap(streamName, serviceName, context, event, processor);
+		} else {
+		    // delivery stream is cached so just invoke the processor
+		    processor();
+		}
 	    }
 	});
-
-	if (deliveryStreamMapping.length === 0 || !deliveryStreamMapping[streamName]) {
-	    // no delivery stream cached so far, so add this stream's tag value
-	    // to the delivery map, and continue with processEvent
-	    exports.buildDeliveryMap(streamName, serviceName, context, event, processor);
-	} else {
-	    // delivery stream is cached so just invoke the processor
-	    processor();
-	}
     }
 }
 exports.handler = handler;
@@ -508,7 +526,7 @@ function writeToFirehose(firehoseBatch, streamName, deliveryStreamName, callback
 	    callback(err);
 	} else {
 	    if (data.FailedPutCount !== 0) {
-	        console.log("Failed to write " + data.FailedPutCount + "/" + firehoseBatch.length + " records. Retrying to write...");
+		console.log("Failed to write " + data.FailedPutCount + "/" + firehoseBatch.length + " records. Retrying to write...");
 		if (retries < MAX_RETRY_ON_FAILED_PUT) {
 		    // extract the failed records
 		    var failedBatch = [];
