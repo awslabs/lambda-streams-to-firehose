@@ -1,6 +1,6 @@
 require('./constants');
 
-var debug = false;
+var debug = process.env.DEBUG || false;
 
 /** function which will simply route records to the provided delivery stream */
 function defaultRouting(defaultDeliveryStreamName, records, callback) {
@@ -12,7 +12,7 @@ exports.defaultRouting = defaultRouting;
 
 /**
  * Function to apply a routing function to a group of records
- * 
+ *
  * @param defaultDeliveryStreamName
  * @param records
  * @param routingFunction
@@ -27,7 +27,7 @@ exports.routeToDestination = routeToDestination;
 /**
  * Helper function to add scalar values to an object which contains indexed
  * arrays
- * 
+ *
  * @param key
  * @param value
  * @param intoObject
@@ -43,7 +43,7 @@ function pushArrayValue(key, value, intoObject) {
 /**
  * Function which routes to a destination by attribute mapping. Only routing
  * which uses a synchronous call is currently supported
- * 
+ *
  * @param attributeMap
  * @param defaultDeliveryStreamName
  * @param records
