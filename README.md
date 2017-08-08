@@ -9,6 +9,12 @@ Amazon Kinesis Firehose simplifies delivery of streaming data to Amazon S3 and A
 
 In order to effectively use this function, you should already have configured an Amazon Kinesis Stream or an Amazon DynamoDB Table with Update Streams, as well as an Amazon Kinesis Firehose Delivery Stream of the correct name. For Amazon Kinesis Streams, please ensure that producer applications can write to the Stream, and that the Amazon Kinesis Firehose Delivery Stream is able to deliver data to Amazon S3 or Amazon Redshift. This function makes no changes to Stream or Firehose configurations. You must also have the AWS Command Line Interface (https://aws.amazon.com/cli) installed to take advantage of the Stream Tagging utility supplied.
 
+# Usage
+
+1. Clone the repository
+2. Run build.sh
+3. Upload a zip file from the dist directory to your lambda
+
 # Configuration
 
 This Lambda functions can map stream sources to Kinesis Firehose Delivery Streams in a few different ways (listed in order of preference):
