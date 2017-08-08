@@ -41,7 +41,7 @@ var useTransformer;
 function setTransformer(transformer) {
     useTransformer = transformer
 }
-exports.setTransformer = setTransformer
+exports.setTransformer = setTransformer;
 
 /*
  * Configure destination router. By default all records route to the configured
@@ -57,7 +57,7 @@ var useRouter = router.defaultRouting.bind(undefined);
 function setRouter(router) {
     useRouter = router
 }
-exports.setRouter = setRouter
+exports.setRouter = setRouter;
 // example for using routing based on messages attributes
 // var attributeMap = {
 // "binaryValue" : {
@@ -137,6 +137,9 @@ function init(callback) {
 		callback(null);
 	    }
 	});
+    }
+    else{
+      callback(null);
     }
 }
 exports.init = init;
@@ -276,7 +279,7 @@ exports.handler = handler;
  * Function which resolves the destination delivery stream for a given Kinesis
  * stream. If no delivery stream is found to deliver to, then we will cache the
  * default delivery stream
- * 
+ *
  * @param streamName
  * @param shouldFailbackToDefaultDeliveryStream
  * @param event
