@@ -14,5 +14,5 @@ echo "Created base distribution in us-east-1"
 
 for region in `echo $regions`; do
 	echo "Copying distribution to $region"
-	aws s3 cp s3://aws-lambda-streams-to-firehose/LambdaStreamToFirehose-$1.zip s3://awslabs-code-$region/LambdaStreamToFirehose/LambdaStreamToFirehose-$1.zip --source-region us-east-1 --region $region --profile $2
+	aws s3 cp s3://aws-lambda-streams-to-firehose/LambdaStreamToFirehose-$1.zip s3://awslabs-code-$region/LambdaStreamToFirehose/LambdaStreamToFirehose-$1.zip --source-region us-east-1 --region $region --profile $2 --acl public-read
 done
