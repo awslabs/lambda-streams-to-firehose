@@ -87,7 +87,8 @@ var USE_DEFAULT_DELIVERY_STREAMS = true;
  * value: deliveryStreamName
  */
 var deliveryStreamMapping = {
-    'DEFAULT': 'LambdaStreamsDefaultDeliveryStream'
+    'DEFAULT': 'LambdaStreamsDefaultDeliveryStream',
+    'course-service-production-completed-course-components': 'delivery-stream-completed-course-components-production'
 };
 
 var start;
@@ -177,6 +178,7 @@ function createDynamoDataItem(record) {
 exports.createDynamoDataItem = createDynamoDataItem;
 
 /** function to extract the kinesis stream name from a kinesis stream ARN */
+// bmt: For a DynamoDB stream, this function will return the DDB table name instead
 function getStreamName(arn) {
     try {
         var eventSourceARNTokens = arn.split(":");
@@ -188,7 +190,7 @@ function getStreamName(arn) {
 }
 
 exports.getStreamName = getStreamName;
-
+ 
 function onCompletion(context, event, err, status, message) {
     console.log("Processing Complete");
 
@@ -241,6 +243,7 @@ function handler(event, context) {
         }
 
         // currently hard coded around the 1.0 kinesis event schema
+        // bmt: shouldn't trigger for DynamoDB events
         if (event.Records[0].kinesis && event.Records[0].kinesis.kinesisSchemaVersion !== "1.0") {
             noProcessReason = "Unsupported Kinesis Event Schema Version " + event.Records[0].kinesis.kinesisSchemaVersion;
         }
@@ -255,9 +258,11 @@ function handler(event, context) {
                 finish(err, ERROR);
             } else {
                 // parse the stream name out of the event
+                // bmt: for DynamoDB streams, this will return the DDB table name instead
                 var streamName = exports.getStreamName(event.Records[0].eventSourceARN);
 
                 // create the processor to handle each record
+                //var processor = exports.processEvent.bind(undefined, event, serviceName, streamName, function (err) {
                 var processor = exports.processEvent.bind(undefined, event, serviceName, streamName, function (err) {
                     if (err) {
                         finish(err, ERROR, "Error Processing Records");
