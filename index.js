@@ -79,7 +79,7 @@ var computeChecksums = true;
  * an existing Firehose, allow usage of a default delivery stream, or fail with
  * an error.
  */
-var USE_DEFAULT_DELIVERY_STREAMS = true;
+var USE_DEFAULT_DELIVERY_STREAMS = false;
 /*
  * Delivery stream mappings can be specified here to overwrite values provided
  * by Kinesis Stream tags or DynamoDB stream name. (Helpful for debugging)
