@@ -15,11 +15,13 @@ transformerRegistry = {
     doNothingTransformer : "doNothingTransformer",
     addNewlineTransformer : "addNewlineTransformer",
     jsonToStringTransformer : "jsonToStringTransformer",
-    regexToDelimiter : "regexToDelimiter"
+    regexToDelimiter : "regexToDelimiter",
+    selectNewImageTransformer : "selectNewImageTransformer"
 };
 supportedDatatypeTransformerMappings = {
     JSON : transformerRegistry.jsonToStringTransformer,
     CSV : transformerRegistry.addNewlineTransformer,
     BINARY : transformerRegistry.doNothingTransformer,
-    "CSV-WITH-NEWLINES" : transformerRegistry.doNothingTransformer
+    "CSV-WITH-NEWLINES" : transformerRegistry.doNothingTransformer,
+    "SELECT-NEW-IMAGE" : transformerRegistry.selectNewImageTransformer
 }

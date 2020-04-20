@@ -14,6 +14,11 @@ require('./constants');
 
 var debug = process.env.DEBUG || false;
 
+function selectNewImageTransformer(data, callback) {
+	callback(null, new Buffer(JSON.stringify(data.NewImage) + "\n", targetEncoding));
+}
+exports.selectNewImageTransformer = selectNewImageTransformer;
+
 function addNewlineTransformer(data, callback) {
     // emitting a new buffer as text with newline
     callback(null, new Buffer(data + "\n", targetEncoding));
