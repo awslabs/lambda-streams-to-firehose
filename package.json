@@ -2,24 +2,36 @@
 	"name": "lambda-stream-to-firehose",
 	"description": "An AWS Lambda function that forwards data from a Kinesis or DynamoDB Update Stream to a Kinesis Firehose Delivery Stream",
 	"version": "1.5.2",
-	"dependencies": 
-	{
+	"dependencies": {
 		"async": "2.1.4",
 		"aws-kpl-deagg": "2.1.1"
 	},
-
-	"keywords": 
-	["amazon","aws","kinesis","firehose","lambda"],
-
-	"author": 
-	{
+	"keywords": [
+		"amazon",
+		"aws",
+		"kinesis",
+		"firehose",
+		"lambda"
+	],
+	"author": {
 		"name": "Ian Meyers",
 		"email": "meyersi@amazon.com"
 	},
 	"scripts": {
-	    "test": "mocha"
-	  },
+		"test": "mocha"
+	},
 	"main": "index.js",
 	"license": "Apache-2.0",
-	"files": ["constants.js","index.js","router.js","transformer.js","lambda.json","tagKinesisStream.sh","package.json","README.md","LICENSE","NOTICE.txt"]
+	"files": [
+		"constants.js",
+		"index.js",
+		"router.js",
+		"transformer.js",
+		"lambda.json",
+		"tagKinesisStream.sh",
+		"package.json",
+		"README.md",
+		"LICENSE",
+		"NOTICE.txt"
+	]
 }
