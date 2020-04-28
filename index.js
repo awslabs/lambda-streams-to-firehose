@@ -96,6 +96,8 @@ var deliveryStreamMapping = {
         "arn:aws:firehose:us-west-2:591756927972:deliverystream/prod-rewardsvc-point-stream",
     "arn:aws:dynamodb:ap-northeast-1:591756927972:table/dev_pointsvc_point/stream/2020-04-28T01:39:19.637":
         "arn:aws:firehose:us-west-2:591756927972:deliverystream/dev-pointsvc-point-stream",
+    "arn:aws:dynamodb:ap-northeast-1:591756927972:table/prod_pointsvc_point/stream/2020-04-28T01:39:18.630":
+        "arn:aws:firehose:us-west-2:591756927972:deliverystream/prod-pointsvc-point-stream",
 };
 
 var start;
