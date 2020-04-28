@@ -37,7 +37,7 @@ var transform = require('./transformer');
  * create the transformer instance - change this to be regexToDelimter, or your
  * own new function
  */
-var useTransformer = selectNewImageTransformer.bind(undefined);
+var useTransformer = transform.selectNewImageTransformer.bind(undefined);
 
 function setTransformer(transformer) {
     useTransformer = transformer
