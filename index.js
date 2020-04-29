@@ -87,17 +87,12 @@ var USE_DEFAULT_DELIVERY_STREAMS = true;
  * value: deliveryStreamName
  */
 var deliveryStreamMapping = {
-    DEFAULT: "LambdaStreamsDefaultDeliveryStream",
-    "arn:aws:dynamodb:ap-northeast-1:591756927972:table/dev_rewardsvc_reward/stream/2020-04-23T02:32:42.357":
-        "arn:aws:firehose:us-west-2:591756927972:deliverystream/dev-rewardsvc-reward-stream",
-    "arn:aws:dynamodb:ap-northeast-1:591756927972:table/staging_rewardsvc_reward/stream/2020-04-28T01:40:10.003":
-        "arn:aws:firehose:us-west-2:591756927972:deliverystream/staging-rewardsvc-reward-stream",
-    "arn:aws:dynamodb:ap-northeast-1:591756927972:table/prod_rewardsvc_reward/stream/2020-04-28T01:40:09.046":
-        "arn:aws:firehose:us-west-2:591756927972:deliverystream/prod-rewardsvc-point-stream",
-    "arn:aws:dynamodb:ap-northeast-1:591756927972:table/dev_pointsvc_point/stream/2020-04-28T01:39:19.637":
-        "arn:aws:firehose:us-west-2:591756927972:deliverystream/dev-pointsvc-point-stream",
-    "arn:aws:dynamodb:ap-northeast-1:591756927972:table/prod_pointsvc_point/stream/2020-04-28T01:39:18.630":
-        "arn:aws:firehose:us-west-2:591756927972:deliverystream/prod-pointsvc-point-stream",
+    "dev_rewardsvc_reward": "dev-rewardsvc-reward-stream",
+    "staging_rewardsvc_reward": "staging-rewardsvc-reward-stream",
+    "prod_rewardsvc_reward": "prod-rewardsvc-reward-stream",
+    "dev_pointsvc_point": "dev-pointsvc-point-stream",
+    "staging_pointsvc_point": "staging-pointsvc-point-stream",
+    "prod_pointsvc_point": "prod-pointsvc-point-stream",
 };
 
 var start;
