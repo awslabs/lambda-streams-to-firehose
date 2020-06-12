@@ -400,6 +400,7 @@ function getBatchRanges(records) {
     var batchCurrentBytes = 0;
     var batchCurrentCount = 0;
     var recordSize;
+    var nextRecordSize;
 
     for (var i = 0; i < records.length; i++) {
         // need to calculate the total record size for the call to Firehose on
@@ -410,9 +411,16 @@ function getBatchRanges(records) {
         batchCurrentBytes += recordSize;
         batchCurrentCount += 1;
 
+        // To get next record size inorder to calculate the FIREHOSE_MAX_BATCH_BYTES
+        if(i === records.length - 1) {
+		    nextRecordSize = 0;
+	    } else {
+		    nextRecordSize = Buffer.byteLength(records[i+1].toString(targetEncoding), targetEncoding);
+	    }
+        
         // generate a new batch marker every 4MB or 500 records, whichever comes
         // first
-        if (batchCurrentCount === FIREHOSE_MAX_BATCH_COUNT || batchCurrentBytes + recordSize > FIREHOSE_MAX_BATCH_BYTES || i === records.length - 1) {
+        if (batchCurrentCount === FIREHOSE_MAX_BATCH_COUNT || batchCurrentBytes + nextRecordSize > FIREHOSE_MAX_BATCH_BYTES || i === records.length - 1) {
             batches.push({
                 lowOffset: currentLowOffset,
                 // annoying special case handling for record sets of size 1
