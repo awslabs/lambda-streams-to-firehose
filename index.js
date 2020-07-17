@@ -93,6 +93,8 @@ var deliveryStreamMapping = {
     "dev_pointsvc_point": "dev-pointsvc-point-stream",
     "staging_pointsvc_point": "staging-pointsvc-point-stream",
     "prod_pointsvc_point": "prod-pointsvc-point-stream",
+    "dev_buzzscreen_point": "dev-buzzscreen-dynamo-point-stream",
+    "prod_buzzscreen_point": "prod-buzzscreen-dynamo-point-stream",
 };
 
 var start;
