@@ -193,6 +193,20 @@ var useRouter = router.routeByAttributeMapping.bind(undefined, attributeMap);
 
 Please note this feature is only supported for JSON data in event payloads.
 
+# Filtering by Event Types
+
+For use-cases where the lambda needs to push only records of certain event type (`INSERT`, `MODIFY`, `REMOVE`); add an environment variable to the lambda:
+
+- Env variable name: `WRITABLE_EVENT_TYPES`
+- Env variable value: Comma-separated list of writable event types
+
+Use-cases:
+
+- AppendOnly: Set the env varible value to just `INSERT`
+- UpsertOnly: Set the env varible value to just `INSERT,MODIFY`
+
+When this environment variable is not set, all types of events will be written.
+
 # Confirming Successful Execution
 
 When successfully configured, writes to your Stream will be automatically forwarded to the Firehose Delivery Stream, and you'll see data arriving in Amazon S3 and optionally Amazon Redshift. You can also view [CloudWatch Logs](http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/WhatIsCloudWatchLogs.html) for this Lambda function as it forwards stream data to Firehose
