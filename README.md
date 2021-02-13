@@ -202,8 +202,8 @@ For use-cases where the lambda needs to push only records of certain event type 
 
 Use-cases:
 
-- AppendOnly: Set the env varible value to just `INSERT`
-- UpsertOnly: Set the env varible value to just `INSERT,MODIFY`
+- AppendOnly: Set the env variable value to just `INSERT`
+- UpsertOnly: Set the env variable value to just `INSERT,MODIFY`
 
 When this environment variable is not set, all types of events will be written.
 
