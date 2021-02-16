@@ -16,6 +16,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
  */
 var debug = process.env.DEBUG || false;
+const allEventTypes = ["INSERT", "MODIFY", "REMOVE"];
+var writableEventTypes = process.env.WRITABLE_EVENT_TYPES ? process.env.WRITABLE_EVENT_TYPES.split(",") : allEventTypes;
+
 
 var pjson = require('./package.json');
 var setRegion = process.env['AWS_REGION'];
@@ -471,9 +474,15 @@ function processEvent(event, serviceName, streamName, callback) {
             });
         } else {
             // dynamo update stream record
-            var data = exports.createDynamoDataItem(record);
-
-            recordCallback(null, data);
+            if (writableEventTypes.includes(record.eventName)) {
+                if (debug) {
+                    console.log("Processing record: " + JSON.stringify(record) + " with event type: " + record.eventName + " when writable events are: " + writableEventTypes);
+                }
+                var data = exports.createDynamoDataItem(record);
+                recordCallback(null, data);
+            } else if (debug) {
+                console.log("Skipping record: " + JSON.stringify(record) + " with event type: " + record.eventName + " when writable events are: " + writableEventTypes);
+            }
         }
     }, function (err, extractedUserRecords) {
         if (err) {
