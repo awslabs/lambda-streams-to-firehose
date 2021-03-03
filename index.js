@@ -480,8 +480,11 @@ function processEvent(event, serviceName, streamName, callback) {
                 }
                 var data = exports.createDynamoDataItem(record);
                 recordCallback(null, data);
-            } else if (debug) {
-                console.log("Skipping record: " + JSON.stringify(record) + " with event type: " + record.eventName + " when writable events are: " + writableEventTypes);
+            } else {
+                if (debug) {
+                    console.log("Skipping record: " + JSON.stringify(record) + " with event type: " + record.eventName + " when writable events are: " + writableEventTypes);
+                }
+                recordCallback(null, null);
             }
         }
     }, function (err, extractedUserRecords) {
@@ -490,7 +493,7 @@ function processEvent(event, serviceName, streamName, callback) {
         } else {
             // extractedUserRecords will be array[array[Object]], so
             // flatten to array[Object]
-            var userRecords = [].concat.apply([], extractedUserRecords);
+            var userRecords = [].concat.apply([], extractedUserRecords.filter(record => record !== null));
 
             // transform the user records
             transform.transformRecords(serviceName, useTransformer, userRecords, function (err, transformed) {
