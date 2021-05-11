@@ -22,7 +22,7 @@ var writableEventTypes = process.env.WRITABLE_EVENT_TYPES ? process.env.WRITABLE
 
 var pjson = require('./package.json');
 var setRegion = process.env['AWS_REGION'];
-var deagg = require('aws-kpl-deagg');
+var deagg = require('aws-kinesis-agg');
 var async = require('async');
 
 var aws = require('aws-sdk');
